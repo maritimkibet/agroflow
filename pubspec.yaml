@@ -1,0 +1,73 @@
+name: agroflow
+description: "AgroFlow - A smart assistant for farmers to manage crop tasks and markets."
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI and icons
+  cupertino_icons: any
+
+  # Local data storage
+  hive: any
+  hive_flutter: any
+  path_provider: any
+
+  # Notifications
+  awesome_notifications: any
+  timezone: any
+
+  # Calendar & date support
+  table_calendar: any
+  intl: any
+
+  # Utilities
+  uuid: any
+  shared_preferences: any
+
+  # Image caching and picker
+  cached_network_image: any
+  image_picker: any
+
+  # Firebase services
+  firebase_core: any
+  firebase_database: any
+  cloud_firestore: any
+  firebase_auth: any
+
+  # Networking and location
+  http: any
+  geolocator: any
+  firebase_storage: ^13.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+
+  # Hive code generation
+  build_runner: any
+  hive_generator: any
+
+  # Launcher icon generation
+  flutter_launcher_icons: any
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/app_icon.png
+
+false_secrets:
+  - android/app/google-services.json
+
+homepage: https://github.com/yourusername/agroflow
+repository: https://github.com/yourusername/agroflow

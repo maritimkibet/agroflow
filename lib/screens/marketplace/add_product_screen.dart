@@ -1,0 +1,460 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../../models/product.dart';
+import '../../services/hive_service.dart';
+import '../onboarding_screen.dart'; // Adjust import to your onboarding screen location
+
+class AddProductScreen extends StatefulWidget {
+  final Product? existingProduct;
+
+  const AddProductScreen({super.key, this.existingProduct});
+
+  @override
+  State<AddProductScreen> createState() => _AddProductScreenState();
+}
+
+class _AddProductScreenState extends State<AddProductScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final HiveService _hiveService = HiveService();
+  final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
+
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _priceController;
+  late TextEditingController _locationController;
+
+  ProductType? _selectedType;
+  ListingType? _selectedListingType;
+
+  final List<File> _pickedImages = [];
+  List<String> _uploadedImageUrls = [];
+
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.existingProduct;
+
+    _nameController = TextEditingController(text: product?.name ?? '');
+    _descriptionController = TextEditingController(text: product?.description ?? '');
+    _priceController = TextEditingController(
+      text: product?.price != null ? product!.price.toString() : '',
+    );
+    _locationController = TextEditingController(text: product?.location ?? '');
+    _selectedType = product?.type;
+    _selectedListingType = product?.listingType;
+
+    if (product?.images != null && product!.images!.isNotEmpty) {
+      _uploadedImageUrls = List<String>.from(product.images!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _takePicture() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    if (pickedFile != null) {
+      setState(() {
+        _pickedImages.add(File(pickedFile.path));
+      });
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    final picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage(imageQuality: 70);
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _pickedImages.addAll(pickedFiles.map((f) => File(f.path)));
+      });
+    }
+  }
+
+  Future<List<String>> _uploadImages() async {
+    List<String> urls = [];
+    for (File image in _pickedImages) {
+      String fileName = 'products/${DateTime.now().millisecondsSinceEpoch}_${image.path.split('/').last}';
+      final ref = _firebaseStorage.ref().child(fileName);
+      final uploadTask = await ref.putFile(image);
+      final url = await uploadTask.ref.getDownloadURL();
+      urls.add(url);
+    }
+    return urls;
+  }
+
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedListingType == ListingType.sell && _pickedImages.isEmpty && _uploadedImageUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('For selling, you must take at least one photo.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final uploadedUrls = await _uploadImages();
+      final allImageUrls = [..._uploadedImageUrls, ...uploadedUrls];
+
+      final name = _nameController.text.trim();
+      final description = _descriptionController.text.trim();
+      final price = double.parse(_priceController.text.trim());
+      final location = _locationController.text.trim();
+
+      final isEditing = widget.existingProduct != null;
+
+      final product = widget.existingProduct ??
+          Product(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            sellerId: _hiveService.getCurrentUser()?.id ?? '',
+            createdAt: DateTime.now(),
+            isAvailable: true,
+            name: name,
+            description: description,
+            price: price,
+            location: location.isNotEmpty ? location : null,
+            images: allImageUrls,
+            type: _selectedType ?? ProductType.other,
+            listingType: _selectedListingType ?? ListingType.sell,
+          );
+
+      if (isEditing) {
+        product
+          ..name = name
+          ..description = description
+          ..price = price
+          ..location = location.isNotEmpty ? location : null
+          ..images = allImageUrls
+          ..type = _selectedType ?? ProductType.other
+          ..listingType = _selectedListingType ?? ListingType.sell;
+      }
+
+      await _hiveService.saveProduct(product);
+
+      setState(() => _isSaving = false);
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ProductPreviewScreen(product: product),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save product: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmNavigateToOnboarding() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirm'),
+        content: const Text('Do you want to go back to the onboarding screen? Unsaved changes will be lost.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  String _productTypeLabel(ProductType type) {
+    switch (type) {
+      case ProductType.crop:
+        return 'Crop';
+      case ProductType.seed:
+        return 'Seed';
+      case ProductType.fertilizer:
+        return 'Fertilizer';
+      case ProductType.tool:
+        return 'Tool';
+      case ProductType.other:
+        return 'Other';
+    }
+  }
+
+  String _listingTypeLabel(ListingType type) {
+    switch (type) {
+      case ListingType.sell:
+        return 'Selling';
+      case ListingType.buy:
+        return 'Buying';
+      case ListingType.barter:
+        return 'Barter';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.existingProduct != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Product' : 'Add Product'),
+        backgroundColor: Colors.green.shade700,
+      ),
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(labelText: 'Product Name'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a name' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    maxLines: 3,
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a description' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _priceController,
+                    decoration: const InputDecoration(labelText: 'Price (KSh)'),
+                    keyboardType: TextInputType.number,
+                    validator: (val) {
+                      final price = double.tryParse(val ?? '');
+                      if (price == null || price <= 0) return 'Enter a valid price';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _locationController,
+                    decoration: const InputDecoration(labelText: 'Location (optional)'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ProductType>(
+                    value: _selectedType,
+                    decoration: const InputDecoration(labelText: 'Product Type'),
+                    items: ProductType.values
+                        .map((type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(_productTypeLabel(type)),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedType = val),
+                    validator: (val) => val == null ? 'Please select a product type' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ListingType>(
+                    value: _selectedListingType,
+                    decoration: const InputDecoration(labelText: 'Listing Type'),
+                    items: ListingType.values
+                        .map((type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(_listingTypeLabel(type)),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedListingType = val),
+                    validator: (val) => val == null ? 'Please select a listing type' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text("Product Photos", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (_pickedImages.isNotEmpty || _uploadedImageUrls.isNotEmpty)
+                    SizedBox(
+                      height: 120,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          ..._pickedImages.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final file = entry.value;
+                            return GestureDetector(
+                              onLongPress: () => _removePickedImage(idx),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                child: Image.file(file, width: 120, height: 120, fit: BoxFit.cover),
+                              ),
+                            );
+                          }),
+                          ..._uploadedImageUrls.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final url = entry.value;
+                            return GestureDetector(
+                              onLongPress: () => _removeUploadedImage(idx),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                child: Image.network(url, width: 120, height: 120, fit: BoxFit.cover),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    )
+                  else
+                    const Text("No photos selected."),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _takePicture,
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text("Camera"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _pickFromGallery,
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text("Gallery"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _saveProduct,
+                    onLongPress: _confirmNavigateToOnboarding,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(isEditing ? 'Save Changes' : 'Add Product'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removePickedImage(int index) {
+    setState(() {
+      _pickedImages.removeAt(index);
+    });
+  }
+
+  void _removeUploadedImage(int index) {
+    setState(() {
+      _uploadedImageUrls.removeAt(index);
+    });
+  }
+}
+
+class ProductPreviewScreen extends StatelessWidget {
+  final Product product;
+  const ProductPreviewScreen({super.key, required this.product});
+
+  String _productTypeLabel(ProductType type) {
+    switch (type) {
+      case ProductType.crop:
+        return 'Crop';
+      case ProductType.seed:
+        return 'Seed';
+      case ProductType.fertilizer:
+        return 'Fertilizer';
+      case ProductType.tool:
+        return 'Tool';
+      case ProductType.other:
+        return 'Other';
+    }
+  }
+
+  String _listingTypeLabel(ListingType type) {
+    switch (type) {
+      case ListingType.sell:
+        return 'Selling';
+      case ListingType.buy:
+        return 'Buying';
+      case ListingType.barter:
+        return 'Barter';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Product Preview'),
+        backgroundColor: Colors.green.shade700,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${product.name}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Description: ${product.description}'),
+            const SizedBox(height: 8),
+            Text('Price: KSh ${product.price.toStringAsFixed(2)}'),
+            const SizedBox(height: 8),
+            if (product.location != null) Text('Location: ${product.location}'),
+            const SizedBox(height: 8),
+            Text('Type: ${_productTypeLabel(product.type)}'),
+            const SizedBox(height: 8),
+            Text('Listing: ${_listingTypeLabel(product.listingType)}'),
+            const SizedBox(height: 16),
+            const Text('Images:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: product.images?.length ?? 0,
+                itemBuilder: (_, index) {
+                  final url = product.images![index];
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: Image.network(url, width: 200, height: 200, fit: BoxFit.cover),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+              child: const Text('Back'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
