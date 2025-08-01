@@ -23,7 +23,7 @@ class User extends HiveObject {
     this.location,
   });
 
-  get crops => null;
+  Null get crops => null;
 }
 
 @HiveType(typeId: 2)

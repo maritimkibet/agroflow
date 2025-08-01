@@ -29,7 +29,7 @@ class ViewMarketplaceScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final product = Product.fromMap(docs[index].data() as Map<String, dynamic>);
+              final product = Product.fromMap(docs[index].data() as Map<String, dynamic>, id: '');
 
               return ListTile(
                 title: Text(product.name),

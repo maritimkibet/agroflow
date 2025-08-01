@@ -14,6 +14,7 @@ import 'add_task_screen.dart';
 import 'calendar_screen.dart';
 import 'marketplace/marketplace_screen.dart';
 import 'marketplace/add_product_screen.dart';
+import 'settings_screen.dart'; // ✅ Import SettingsScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Dynamic crop tip logic (same as you wrote)
   String getDynamicCropTip() {
     final Map<String, List<String>> tipsByTask = {
       'weeding': [
@@ -114,12 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((task) => task.isCompleted && task.taskType != null)
         .toList();
     if (completedTasks.isNotEmpty) {
-      completedTasks.sort((a, b) => b.date.compareTo(a.date)); // newest first
+      completedTasks.sort((a, b) => b.date.compareTo(a.date));
       final lastTaskType = completedTasks.first.taskType!.toLowerCase();
 
       final relevantTips = tipsByTask[lastTaskType] ?? tipsByTask['general']!;
 
-      final windKmh = (_windSpeed ?? 0) * 3.6; // m/s to km/h
+      final windKmh = (_windSpeed ?? 0) * 3.6;
       final rainExpected = _weatherSummary.toLowerCase().contains('rain');
 
       final filteredTips = relevantTips.where((tip) {
@@ -230,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMarketTab() => const MarketplaceScreen();
+  Widget _buildSettingsTab() => const SettingsScreen(); // ✅
 
   void _openAddProductScreen() {
     Navigator.push(
@@ -243,10 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      _buildDashboardTab(),        // Index 0
-      const CalendarScreen(),      // Index 1
-      _buildTasksTab(),            // Index 2
-      _buildMarketTab(),           // Index 3
+      _buildDashboardTab(),       // Index 0
+      const CalendarScreen(),     // Index 1
+      _buildTasksTab(),           // Index 2
+      _buildMarketTab(),          // Index 3
+      _buildSettingsTab(),        // Index 4 ✅
     ];
 
     return Scaffold(
@@ -269,11 +271,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _onTabSelected,
         selectedItemColor: Colors.green.shade700,
         unselectedItemColor: Colors.grey.shade700,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
           BottomNavigationBarItem(icon: Icon(Icons.task_alt), label: 'Tasks'),
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Market'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'), // ✅
         ],
       ),
       floatingActionButton: _selectedIndex == 2

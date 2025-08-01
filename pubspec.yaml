@@ -10,51 +10,51 @@ dependencies:
     sdk: flutter
 
   # UI and icons
-  cupertino_icons: any
+  cupertino_icons: ^1.0.6
 
   # Local data storage
-  hive: any
-  hive_flutter: any
-  path_provider: any
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
 
   # Notifications
-  awesome_notifications: any
-  timezone: any
+  awesome_notifications: ^0.10.1
+  timezone: ^0.9.2
 
   # Calendar & date support
-  table_calendar: any
-  intl: any
+  table_calendar: ^3.0.9
+  intl: ^0.20.2
 
   # Utilities
-  uuid: any
-  shared_preferences: any
+  uuid: ^4.1.0
+  shared_preferences: ^2.2.2
 
   # Image caching and picker
-  cached_network_image: any
-  image_picker: any
+  cached_network_image: ^3.3.1
+  image_picker: ^1.0.7
 
   # Firebase services
-  firebase_core: any
-  firebase_database: any
-  cloud_firestore: any
-  firebase_auth: any
+  firebase_core: ^2.30.0
+  firebase_auth: ^4.19.1
+  cloud_firestore: ^4.17.2
+  firebase_database: ^10.5.2
+  firebase_storage: ^11.6.7
 
   # Networking and location
-  http: any
-  geolocator: any
-  firebase_storage: ^13.0.0
+  http: ^1.2.1
+  geolocator: ^11.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: any
+  flutter_lints: ^4.0.0
 
   # Hive code generation
-  build_runner: any
-  hive_generator: any
+  build_runner: ^2.4.8
+  hive_generator: ^1.1.0
 
   # Launcher icon generation
-  flutter_launcher_icons: any
+  flutter_launcher_icons: ^0.13.1
 
 flutter_icons:
   android: true
@@ -69,5 +69,5 @@ flutter:
 false_secrets:
   - android/app/google-services.json
 
-homepage: https://github.com/yourusername/agroflow
-repository: https://github.com/yourusername/agroflow
+homepage: https://github.com/maritimkibet/agroflow
+repository: https://github.com/maritimkibet/agroflow

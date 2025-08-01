@@ -1,10 +1,13 @@
 import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+
 import '../../models/product.dart';
-import '../../services/hive_service.dart';
-import '../onboarding_screen.dart'; // Adjust import to your onboarding screen location
+import '../onboarding_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
   final Product? existingProduct;
@@ -17,8 +20,10 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
-  final HiveService _hiveService = HiveService();
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
@@ -40,15 +45,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     _nameController = TextEditingController(text: product?.name ?? '');
     _descriptionController = TextEditingController(text: product?.description ?? '');
-    _priceController = TextEditingController(
-      text: product?.price != null ? product!.price.toString() : '',
-    );
+    _priceController = TextEditingController(text: product?.price.toString() ?? '');
     _locationController = TextEditingController(text: product?.location ?? '');
     _selectedType = product?.type;
     _selectedListingType = product?.listingType;
 
-    if (product?.images != null && product!.images!.isNotEmpty) {
-      _uploadedImageUrls = List<String>.from(product.images!);
+    if (product?.images?.isNotEmpty ?? false) {
+      _uploadedImageUrls = List<String>.from(product!.images!);
     }
   }
 
@@ -83,12 +86,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<List<String>> _uploadImages() async {
     List<String> urls = [];
-    for (File image in _pickedImages) {
-      String fileName = 'products/${DateTime.now().millisecondsSinceEpoch}_${image.path.split('/').last}';
-      final ref = _firebaseStorage.ref().child(fileName);
-      final uploadTask = await ref.putFile(image);
-      final url = await uploadTask.ref.getDownloadURL();
-      urls.add(url);
+    for (final image in _pickedImages) {
+      try {
+        final fileName = 'products/${DateTime.now().millisecondsSinceEpoch}_${image.path.split('/').last}';
+        final ref = _firebaseStorage.ref().child(fileName);
+        final uploadTask = await ref.putFile(image);
+        final url = await uploadTask.ref.getDownloadURL();
+        urls.add(url);
+      } catch (e) {
+        debugPrint('Error uploading image: $e');
+      }
     }
     return urls;
   }
@@ -98,7 +105,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     if (_selectedListingType == ListingType.sell && _pickedImages.isEmpty && _uploadedImageUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('For selling, you must take at least one photo.')),
+        const SnackBar(content: Text('For selling, you must add at least one photo.')),
       );
       return;
     }
@@ -116,43 +123,38 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       final isEditing = widget.existingProduct != null;
 
-      final product = widget.existingProduct ??
-          Product(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            sellerId: _hiveService.getCurrentUser()?.id ?? '',
-            createdAt: DateTime.now(),
-            isAvailable: true,
-            name: name,
-            description: description,
-            price: price,
-            location: location.isNotEmpty ? location : null,
-            images: allImageUrls,
-            type: _selectedType ?? ProductType.other,
-            listingType: _selectedListingType ?? ListingType.sell,
-          );
-
-      if (isEditing) {
-        product
-          ..name = name
-          ..description = description
-          ..price = price
-          ..location = location.isNotEmpty ? location : null
-          ..images = allImageUrls
-          ..type = _selectedType ?? ProductType.other
-          ..listingType = _selectedListingType ?? ListingType.sell;
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
       }
 
-      await _hiveService.saveProduct(product);
+      final productId = isEditing
+          ? widget.existingProduct!.id
+          : _firestore.collection('products').doc().id;
+
+      final product = Product(
+        id: productId,
+        sellerId: currentUser.uid,
+        createdAt: isEditing ? widget.existingProduct!.createdAt : DateTime.now(),
+        isAvailable: true,
+        name: name,
+        description: description,
+        price: price,
+        location: location.isNotEmpty ? location : null,
+        images: allImageUrls,
+        type: _selectedType ?? ProductType.other,
+        listingType: _selectedListingType ?? ListingType.sell,
+      );
+
+      await _firestore.collection('products').doc(product.id).set(product.toMap());
 
       setState(() => _isSaving = false);
 
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ProductPreviewScreen(product: product),
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => ProductPreviewScreen(product: product)),
+      );
     } catch (e) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -166,19 +168,38 @@ class _AddProductScreenState extends State<AddProductScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Confirm'),
-        content: const Text('Do you want to go back to the onboarding screen? Unsaved changes will be lost.'),
+        content: const Text('Do you want to go back to onboarding? Unsaved changes will be lost.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
+
+    if (confirmed == true && mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         (route) => false,
       );
     }
+  }
+
+  void _removePickedImage(int index) {
+    setState(() {
+      _pickedImages.removeAt(index);
+    });
+  }
+
+  void _removeUploadedImage(int index) {
+    setState(() {
+      _uploadedImageUrls.removeAt(index);
+    });
   }
 
   String _productTypeLabel(ProductType type) {
@@ -211,10 +232,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.existingProduct != null;
 
+    final buttonStyle = ElevatedButton.styleFrom(
+      backgroundColor: const Color.fromARGB(255, 132, 156, 133),
+      minimumSize: const Size.fromHeight(50),
+      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Product' : 'Add Product'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: const Color.fromARGB(255, 129, 159, 130),
       ),
       resizeToAvoidBottomInset: true,
       body: Stack(
@@ -228,14 +255,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(labelText: 'Product Name'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a name' : null,
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty ? 'Please enter a name' : null,
+                    enabled: !_isSaving,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _descriptionController,
                     decoration: const InputDecoration(labelText: 'Description'),
                     maxLines: 3,
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a description' : null,
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty ? 'Please enter a description' : null,
+                    enabled: !_isSaving,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -247,23 +278,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       if (price == null || price <= 0) return 'Enter a valid price';
                       return null;
                     },
+                    enabled: !_isSaving,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _locationController,
                     decoration: const InputDecoration(labelText: 'Location (optional)'),
+                    enabled: !_isSaving,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<ProductType>(
                     value: _selectedType,
                     decoration: const InputDecoration(labelText: 'Product Type'),
                     items: ProductType.values
-                        .map((type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(_productTypeLabel(type)),
-                            ))
+                        .map(
+                          (type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(_productTypeLabel(type)),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (val) => setState(() => _selectedType = val),
+                    onChanged: _isSaving ? null : (val) => setState(() => _selectedType = val),
                     validator: (val) => val == null ? 'Please select a product type' : null,
                   ),
                   const SizedBox(height: 12),
@@ -271,16 +306,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     value: _selectedListingType,
                     decoration: const InputDecoration(labelText: 'Listing Type'),
                     items: ListingType.values
-                        .map((type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(_listingTypeLabel(type)),
-                            ))
+                        .map(
+                          (type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(_listingTypeLabel(type)),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (val) => setState(() => _selectedListingType = val),
+                    onChanged: _isSaving ? null : (val) => setState(() => _selectedListingType = val),
                     validator: (val) => val == null ? 'Please select a listing type' : null,
                   ),
                   const SizedBox(height: 16),
-                  const Text("Product Photos", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text("Product Photos", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
                   const SizedBox(height: 8),
                   if (_pickedImages.isNotEmpty || _uploadedImageUrls.isNotEmpty)
                     SizedBox(
@@ -288,28 +328,34 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
-                          ..._pickedImages.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final file = entry.value;
-                            return GestureDetector(
-                              onLongPress: () => _removePickedImage(idx),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                child: Image.file(file, width: 120, height: 120, fit: BoxFit.cover),
-                              ),
-                            );
-                          }),
-                          ..._uploadedImageUrls.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final url = entry.value;
-                            return GestureDetector(
-                              onLongPress: () => _removeUploadedImage(idx),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                child: Image.network(url, width: 120, height: 120, fit: BoxFit.cover),
-                              ),
-                            );
-                          }),
+                          ..._pickedImages.asMap().entries.map(
+                            (entry) {
+                              final idx = entry.key;
+                              final file = entry.value;
+                              return GestureDetector(
+                                onLongPress: () => _removePickedImage(idx),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  child: Image.file(file,
+                                      width: 120, height: 120, fit: BoxFit.cover),
+                                ),
+                              );
+                            },
+                          ),
+                          ..._uploadedImageUrls.asMap().entries.map(
+                            (entry) {
+                              final idx = entry.key;
+                              final url = entry.value;
+                              return GestureDetector(
+                                onLongPress: () => _removeUploadedImage(idx),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  child: Image.network(url,
+                                      width: 120, height: 120, fit: BoxFit.cover),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     )
@@ -318,18 +364,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      ElevatedButton.icon(
-                        onPressed: _takePicture,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text("Camera"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _takePicture,
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text("Camera"),
+                          style: buttonStyle,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _pickFromGallery,
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text("Gallery"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _pickFromGallery,
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text("Gallery"),
+                          style: buttonStyle,
+                        ),
                       ),
                     ],
                   ),
@@ -337,10 +387,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _saveProduct,
                     onLongPress: _confirmNavigateToOnboarding,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      minimumSize: const Size.fromHeight(50),
-                    ),
+                    style: buttonStyle,
                     child: _isSaving
                         ? const SizedBox(
                             height: 24,
@@ -359,18 +406,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
         ],
       ),
     );
-  }
-
-  void _removePickedImage(int index) {
-    setState(() {
-      _pickedImages.removeAt(index);
-    });
-  }
-
-  void _removeUploadedImage(int index) {
-    setState(() {
-      _uploadedImageUrls.removeAt(index);
-    });
   }
 }
 
@@ -409,7 +444,7 @@ class ProductPreviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Product Preview'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: const Color.fromARGB(255, 163, 182, 164),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -421,8 +456,10 @@ class ProductPreviewScreen extends StatelessWidget {
             Text('Description: ${product.description}'),
             const SizedBox(height: 8),
             Text('Price: KSh ${product.price.toStringAsFixed(2)}'),
-            const SizedBox(height: 8),
-            if (product.location != null) Text('Location: ${product.location}'),
+            if (product.location != null) ...[
+              const SizedBox(height: 8),
+              Text('Location: ${product.location}'),
+            ],
             const SizedBox(height: 8),
             Text('Type: ${_productTypeLabel(product.type)}'),
             const SizedBox(height: 8),
@@ -446,10 +483,12 @@ class ProductPreviewScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 143, 173, 145),
+                minimumSize: const Size.fromHeight(50),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               child: const Text('Back'),
             ),
           ],

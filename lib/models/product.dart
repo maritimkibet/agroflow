@@ -53,6 +53,7 @@ class Product extends HiveObject {
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
+  /// Firestore serialization
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
@@ -63,25 +64,26 @@ class Product extends HiveObject {
         'sellerId': sellerId,
         'location': location,
         'createdAt': createdAt.toIso8601String(),
-        'images': images,
+        'images': images ?? [],
         'isAvailable': isAvailable,
       };
 
-  static Product fromMap(Map<String, dynamic> data) => Product(
-        id: data['id'],
+  /// Firestore deserialization
+  static Product fromMap(Map<String, dynamic> data, {required String id}) => Product(
+        id: id,
         name: data['name'] ?? '',
         description: data['description'] ?? '',
         price: (data['price'] is int)
             ? (data['price'] as int).toDouble()
             : (data['price'] as double? ?? 0.0),
-        type: ProductType.values[data['type'] ?? 0],
-        listingType: ListingType.values[data['listingType'] ?? 0],
+        type: ProductType.values[(data['type'] ?? 0).clamp(0, ProductType.values.length - 1)],
+        listingType: ListingType.values[(data['listingType'] ?? 0).clamp(0, ListingType.values.length - 1)],
         sellerId: data['sellerId'] ?? '',
         location: data['location'],
         createdAt: data['createdAt'] != null
-            ? DateTime.parse(data['createdAt'])
+            ? DateTime.tryParse(data['createdAt']) ?? DateTime.now()
             : DateTime.now(),
-        images: data['images'] != null ? List<String>.from(data['images']) : null,
+        images: data['images'] != null ? List<String>.from(data['images']) : [],
         isAvailable: data['isAvailable'] ?? true,
       );
 
@@ -104,16 +106,12 @@ class Product extends HiveObject {
 enum ProductType {
   @HiveField(0)
   crop,
-
   @HiveField(1)
   seed,
-
   @HiveField(2)
   fertilizer,
-
   @HiveField(3)
   tool,
-
   @HiveField(4)
   other,
 }
@@ -122,10 +120,8 @@ enum ProductType {
 enum ListingType {
   @HiveField(0)
   sell,
-
   @HiveField(1)
   buy,
-
   @HiveField(2)
   barter,
 }

@@ -1,16 +1,28 @@
-# agroflow
+# AgroFlow
 
-A new Flutter project.
+AgroFlow is a smart assistant Flutter app for farmers to manage crop tasks, schedules, and market listings with an easy-to-use interface.
+
+## Features
+
+- User authentication (login, registration, logout)
+- Crop task management with reminders and calendar view
+- Marketplace for buying and selling farm products with images and location
+- Weather information and dynamic crop tips
+- Profile management with photo upload and account settings
+- Notifications for scheduled farming tasks
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter SDK (>= 3.7.0)
+- Firebase project configured (Authentication, Firestore, Storage)
+- Android/iOS setup following [FlutterFire docs](https://firebase.flutter.dev/)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Installation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Clone the repo:
+
+   ```bash
+   git clone https://github.com/maritimkibet/agroflow.git
+   cd agroflow

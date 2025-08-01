@@ -12,17 +12,17 @@ import 'services/hive_service.dart';
 import 'services/notification_service.dart';
 
 import 'screens/splash_screen.dart';
+import 'auth/login_screen.dart';
+import 'auth/register_screen.dart';
+import 'screens/home_screen.dart';
+import 'wrappers/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
   await Firebase.initializeApp();
-
-  // Initialize Hive
   await Hive.initFlutter();
 
-  // Register Hive adapters (make sure adapters are generated)
   Hive.registerAdapter(CropTaskAdapter());
   Hive.registerAdapter(UserAdapter());
   Hive.registerAdapter(UserRoleAdapter());
@@ -32,29 +32,24 @@ void main() async {
   Hive.registerAdapter(CropDataAdapter());
   Hive.registerAdapter(WateringScheduleAdapter());
 
-  // Open Hive boxes
   await Hive.openBox<CropTask>(HiveService.taskBoxName);
   await Hive.openBox<User>(HiveService.userBoxName);
   await Hive.openBox<Product>(HiveService.productBoxName);
   await Hive.openBox<CropData>(HiveService.cropDataBoxName);
   await Hive.openBox(HiveService.settingsBoxName);
 
-  // Optional: Migrate or update old tasks if needed
   final taskBox = Hive.box<CropTask>(HiveService.taskBoxName);
   for (var task in taskBox.values) {
     await task.save();
   }
 
-  // Initialize HiveService (loads predefined crops if empty)
   final hiveService = HiveService();
   await hiveService.initializeCropData();
 
-  // Initialize Notifications
   final notificationService = NotificationService();
   await notificationService.initialize();
   await notificationService.scheduleTaskNotifications();
 
-  // Firebase Realtime Database reference
   final databaseRef = FirebaseDatabase.instance.ref();
 
   runApp(MyApp(
@@ -86,7 +81,14 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: SplashScreen(databaseRef: databaseRef),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => SplashScreen(databaseRef: databaseRef),
+        '/auth': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }

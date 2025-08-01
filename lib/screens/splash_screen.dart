@@ -1,8 +1,8 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/hive_service.dart';
-import 'home_screen.dart';
-import 'onboarding_screen.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -37,39 +37,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _startAnimationAndNavigate() async {
     await _animationController.forward();
-    await Future.delayed(const Duration(seconds: 1)); // total 3 seconds splash
-
-    await _navigateToNextScreen();
+    await Future.delayed(const Duration(seconds: 1)); // Total 3 seconds
+    await _logStartupAndNavigate();
   }
 
-  Future<void> _navigateToNextScreen() async {
-    bool isFirstLaunch = false;
-    dynamic currentUser;
-
-    try {
-      isFirstLaunch = _hiveService.isFirstLaunch();
-      currentUser = _hiveService.getCurrentUser();
-      if (isFirstLaunch) {
-        _hiveService.setFirstLaunch(false);
-      }
-    } catch (e) {
-      debugPrint('Hive read error: $e');
-    }
-
+  Future<void> _logStartupAndNavigate() async {
     try {
       await widget.databaseRef.child('splashCheck').set({'status': 'App started'});
     } catch (e) {
       debugPrint('Firebase write failed: $e');
     }
 
+    // Continue to auth wrapper
     if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) =>
-            isFirstLaunch || currentUser == null ? const OnboardingScreen() : const HomeScreen(),
-      ),
-    );
+    Navigator.pushReplacementNamed(context, '/auth');
   }
 
   @override

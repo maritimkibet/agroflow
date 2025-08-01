@@ -17,7 +17,7 @@ class FirebaseService {
     return _productsRef.snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        return Product.fromMap(data);
+        return Product.fromMap(data, id: '');
       }).toList().cast<Product>();
     });
   }
