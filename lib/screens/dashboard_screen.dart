@@ -5,8 +5,7 @@ import 'add_task_screen.dart';
 import '../widgets/weather_widget.dart';
 import '../widgets/crop_tip_widget.dart';
 
-import '../services/hive_service.dart';
-import '../services/firestore_service.dart';
+import '../services/hybrid_storage_service.dart';
 import '../services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -20,8 +19,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
   // Instantiate your services here
-  final HiveService hiveService = HiveService();
-  final FirestoreService firestoreService = FirestoreService();
+  final HybridStorageService storageService = HybridStorageService();
   final NotificationService notificationService = NotificationService();
 
   late final List<Widget> _pages;
@@ -33,8 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const HomeOverview(),
       const CalendarScreen(),
       AddTaskScreen(
-        hiveService: hiveService,
-        firestoreService: firestoreService,
+        storageService: storageService,
         notificationService: notificationService,
       ),
       const MarketplaceScreen(),

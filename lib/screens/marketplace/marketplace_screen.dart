@@ -217,37 +217,105 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           separatorBuilder: (_, __) => const Divider(),
                           itemBuilder: (context, index) {
                             final product = filteredProducts[index];
-                            return ListTile(
-                              leading: product.images != null && product.images!.isNotEmpty
-                                  ? SizedBox(
-                                      width: 50,
-                                      height: 50,
-                                      child: CachedNetworkImage(
-                                        imageUrl: product.images!.first,
-                                        placeholder: (context, url) =>
-                                            const CircularProgressIndicator(strokeWidth: 2),
-                                        errorWidget: (context, url, error) =>
-                                            const Icon(Icons.error),
-                                        fit: BoxFit.cover,
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              child: ListTile(
+                                leading: product.images != null && product.images!.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: SizedBox(
+                                          width: 60,
+                                          height: 60,
+                                          child: CachedNetworkImage(
+                                            imageUrl: product.images!.first,
+                                            placeholder: (context, url) => Container(
+                                              color: Colors.grey.shade200,
+                                              child: const Center(
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) => Container(
+                                              color: Colors.grey.shade200,
+                                              child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                                            ),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade200,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.shopping_bag, size: 30, color: Colors.grey),
                                       ),
-                                    )
-                                  : const Icon(Icons.shopping_bag, size: 50, color: Colors.grey),
-                              title: Text(product.name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                '${product.description}\nKSh ${product.price.toStringAsFixed(0)}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: Text(_listingTypeLabel(product.listingType)),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProductDetailScreen(product: product),
+                                title: Text(
+                                  product.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.description,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Colors.grey.shade600),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'KSh ${product.price.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                    if (product.location != null)
+                                      Text(
+                                        product.location!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                trailing: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: product.listingType == ListingType.sell
+                                        ? Colors.green.shade100
+                                        : product.listingType == ListingType.buy
+                                            ? Colors.blue.shade100
+                                            : Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                );
-                              },
+                                  child: Text(
+                                    _listingTypeLabel(product.listingType),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: product.listingType == ListingType.sell
+                                          ? Colors.green.shade700
+                                          : product.listingType == ListingType.buy
+                                              ? Colors.blue.shade700
+                                              : Colors.orange.shade700,
+                                    ),
+                                  ),
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailScreen(product: product),
+                                    ),
+                                  );
+                                },
+                              ),
                             );
                           },
                         ),

@@ -29,6 +29,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _locationController;
+  late TextEditingController _contactController; // New controller
 
   ProductType? _selectedType;
   ListingType? _selectedListingType;
@@ -47,6 +48,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _descriptionController = TextEditingController(text: product?.description ?? '');
     _priceController = TextEditingController(text: product?.price.toString() ?? '');
     _locationController = TextEditingController(text: product?.location ?? '');
+    _contactController = TextEditingController(text: product?.contactNumber ?? ''); // Init contact number
     _selectedType = product?.type;
     _selectedListingType = product?.listingType;
 
@@ -61,6 +63,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _locationController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -120,6 +123,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final description = _descriptionController.text.trim();
       final price = double.parse(_priceController.text.trim());
       final location = _locationController.text.trim();
+      final contactNumber = _contactController.text.trim();
 
       final isEditing = widget.existingProduct != null;
 
@@ -144,6 +148,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         images: allImageUrls,
         type: _selectedType ?? ProductType.other,
         listingType: _selectedListingType ?? ListingType.sell,
+        contactNumber: contactNumber.isNotEmpty ? contactNumber : null, // Save contact number
       );
 
       await _firestore.collection('products').doc(product.id).set(product.toMap());
@@ -287,6 +292,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     enabled: !_isSaving,
                   ),
                   const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _contactController,
+                    decoration: const InputDecoration(labelText: 'Contact Number'),
+                    keyboardType: TextInputType.phone,
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) return 'Please enter a contact number';
+                      return null;
+                    },
+                    enabled: !_isSaving,
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<ProductType>(
                     value: _selectedType,
                     decoration: const InputDecoration(labelText: 'Product Type'),
@@ -336,8 +352,42 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 onLongPress: () => _removePickedImage(idx),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 8),
-                                  child: Image.file(file,
-                                      width: 120, height: 120, fit: BoxFit.cover),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          file,
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () => _removePickedImage(idx),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },
@@ -350,8 +400,61 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 onLongPress: () => _removeUploadedImage(idx),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 8),
-                                  child: Image.network(url,
-                                      width: 120, height: 120, fit: BoxFit.cover),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          url,
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, loadingProgress) {
+                                            if (loadingProgress == null) return child;
+                                            return Container(
+                                              width: 120,
+                                              height: 120,
+                                              color: Colors.grey.shade200,
+                                              child: const Center(
+                                                child: CircularProgressIndicator(),
+                                              ),
+                                            );
+                                          },
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Container(
+                                              width: 120,
+                                              height: 120,
+                                              color: Colors.grey.shade200,
+                                              child: const Icon(Icons.error),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () => _removeUploadedImage(idx),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },
@@ -459,6 +562,10 @@ class ProductPreviewScreen extends StatelessWidget {
             if (product.location != null) ...[
               const SizedBox(height: 8),
               Text('Location: ${product.location}'),
+            ],
+            if (product.contactNumber != null && product.contactNumber!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Contact Number: ${product.contactNumber}'),
             ],
             const SizedBox(height: 8),
             Text('Type: ${_productTypeLabel(product.type)}'),

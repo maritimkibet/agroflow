@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/crop_task.dart';
 import '../models/product.dart';
+import '../models/user.dart';
 
 class FirestoreService {
   final _taskCollection = FirebaseFirestore.instance.collection('crop_tasks');
   final _productCollection = FirebaseFirestore.instance.collection('products');
+  final _userCollection = FirebaseFirestore.instance.collection('users');
 
   // Crop Tasks
   Future<void> addOrUpdateTask(CropTask task) async {
@@ -42,6 +44,32 @@ class FirestoreService {
     final doc = await _productCollection.doc(id).get();
     if (doc.exists) {
       return Product.fromMap(doc.data()!, id: doc.id);
+    }
+    return null;
+  }
+
+  // User Profile Management
+  Future<void> saveUserProfile(User user) async {
+    await _userCollection.doc(user.id).set({
+      'id': user.id,
+      'name': user.name,
+      'role': user.role.name,
+      'location': user.location,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<User?> getUserProfile(String userId) async {
+    final doc = await _userCollection.doc(userId).get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      return User(
+        id: data['id'],
+        name: data['name'],
+        role: UserRole.values.firstWhere((e) => e.name == data['role']),
+        location: data['location'],
+      );
     }
     return null;
   }

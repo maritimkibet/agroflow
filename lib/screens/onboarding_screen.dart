@@ -81,6 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       subtitle,
                       style: TextStyle(
                         color: isSelected
+                            // ignore: deprecated_member_use
                             ? theme.colorScheme.primary.withOpacity(0.8)
                             : Colors.grey[600],
                       ),

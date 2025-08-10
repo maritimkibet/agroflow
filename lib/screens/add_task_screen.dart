@@ -1,21 +1,22 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/crop_task.dart';
-import '../services/hive_service.dart';
-import '../services/firestore_service.dart';
+import '../services/hybrid_storage_service.dart';
 import '../services/notification_service.dart';
 import 'onboarding_screen.dart';
 
 class AddTaskScreen extends StatefulWidget {
-  final HiveService hiveService;
-  final FirestoreService firestoreService;
+  final HybridStorageService storageService;
   final NotificationService notificationService;
+  final DateTime? selectedDate;
 
   const AddTaskScreen({
     super.key,
-    required this.hiveService,
-    required this.firestoreService,
+    required this.storageService,
     required this.notificationService,
+    this.selectedDate,
   });
 
   @override
@@ -29,6 +30,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   DateTime? _selectedDate;
   bool _isCompleted = false;
   String? _selectedTaskType;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.selectedDate ?? DateTime.now();
+  }
 
   final List<String> _taskTypes = [
     'Weeding',
@@ -83,8 +90,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       notes: _selectedTaskType,
     );
 
-    await widget.hiveService.saveTask(newTask);
-    await widget.firestoreService.addOrUpdateTask(newTask);
+    await widget.storageService.addOrUpdateTask(newTask);
     await widget.notificationService.scheduleNotificationForTask(newTask);
 
     ScaffoldMessenger.of(context).showSnackBar(

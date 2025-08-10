@@ -25,32 +25,45 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 800), // Reduced from 2 seconds
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
     _startAnimationAndNavigate();
   }
 
   Future<void> _startAnimationAndNavigate() async {
-    await _animationController.forward();
-    await Future.delayed(const Duration(seconds: 1)); // Total 3 seconds
-    await _logStartupAndNavigate();
+    // Start animation and navigation concurrently
+    final animationFuture = _animationController.forward();
+    final navigationFuture = _prepareAndNavigate();
+    
+    // Wait for both to complete, but ensure minimum 1 second total
+    await Future.wait([
+      animationFuture,
+      Future.delayed(const Duration(seconds: 1)), // Exactly 1 second total
+    ]);
+    
+    await navigationFuture;
   }
 
-  Future<void> _logStartupAndNavigate() async {
-    try {
-      await widget.databaseRef.child('splashCheck').set({'status': 'App started'});
-    } catch (e) {
-      debugPrint('Firebase write failed: $e');
-    }
-
-    // Continue to auth wrapper
+  Future<void> _prepareAndNavigate() async {
+    // Log startup in background without blocking navigation
+    _logStartupInBackground();
+    
+    // Continue to auth wrapper after delay
+    await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/auth');
+  }
+
+  void _logStartupInBackground() {
+    // Run Firebase logging in background without awaiting
+    widget.databaseRef.child('splashCheck').set({'status': 'App started'}).catchError((e) {
+      debugPrint('Firebase write failed: $e');
+    });
   }
 
   @override
@@ -69,7 +82,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.eco, size: 100, color: Colors.green.shade700),
+              // Use a more efficient icon
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade700,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.eco,
+                  size: 60,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 'AgroFlow',
@@ -77,21 +103,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.green.shade800,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Text(
-                'You plant, we maintain.',
+                'Smart Farming Assistant',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontStyle: FontStyle.italic,
+                  fontSize: 16,
                   color: Colors.brown.shade600,
                 ),
               ),
-              const SizedBox(height: 48),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Colors.green.shade700,
+              const SizedBox(height: 40),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.green.shade700,
+                  ),
                 ),
               ),
             ],

@@ -179,6 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Update email if changed
       if (wantsEmailChange) {
+        // ignore: deprecated_member_use
         await _currentUser!.updateEmail(newEmail);
       }
 

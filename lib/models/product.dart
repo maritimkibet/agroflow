@@ -38,6 +38,10 @@ class Product extends HiveObject {
   @HiveField(10)
   bool isAvailable;
 
+  // New field for contact number
+  @HiveField(11)
+  String? contactNumber;
+
   Product({
     String? id,
     required this.name,
@@ -50,6 +54,7 @@ class Product extends HiveObject {
     DateTime? createdAt,
     this.images,
     this.isAvailable = true,
+    this.contactNumber,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
@@ -66,6 +71,7 @@ class Product extends HiveObject {
         'createdAt': createdAt.toIso8601String(),
         'images': images ?? [],
         'isAvailable': isAvailable,
+        'contactNumber': contactNumber,
       };
 
   /// Firestore deserialization
@@ -85,6 +91,7 @@ class Product extends HiveObject {
             : DateTime.now(),
         images: data['images'] != null ? List<String>.from(data['images']) : [],
         isAvailable: data['isAvailable'] ?? true,
+        contactNumber: data['contactNumber'], // <-- new field here
       );
 
   static Product empty() => Product(
@@ -99,6 +106,7 @@ class Product extends HiveObject {
         createdAt: DateTime.now(),
         images: [],
         isAvailable: false,
+        contactNumber: null,
       );
 }
 

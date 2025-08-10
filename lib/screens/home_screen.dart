@@ -1,12 +1,10 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/crop_task.dart';
-import '../services/firestore_service.dart';
-import '../services/hive_service.dart';
+import '../models/user.dart';
+import '../services/hybrid_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/weather_service.dart';
 
@@ -14,7 +12,8 @@ import 'add_task_screen.dart';
 import 'calendar_screen.dart';
 import 'marketplace/marketplace_screen.dart';
 import 'marketplace/add_product_screen.dart';
-import 'settings_screen.dart'; // ✅ Import SettingsScreen
+import 'settings_screen.dart';
+import 'ai_assistant_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,12 +23,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final HiveService _hiveService = HiveService();
-  final FirestoreService _firestoreService = FirestoreService();
+  final HybridStorageService _storageService = HybridStorageService();
   final NotificationService _notificationService = NotificationService();
   final WeatherService _weatherService = WeatherService();
 
   int _selectedIndex = 0;
+  User? _currentUser;
 
   String _weatherSummary = '';
   String _temperature = '';
@@ -40,7 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _hiveService.init();
+    _currentUser = _storageService.getCurrentUser();
+    _storageService.startSyncMonitoring(); // Start monitoring connectivity
     _checkFirstLaunch();
     _loadWeather();
   }
@@ -56,8 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => AddTaskScreen(
-              hiveService: _hiveService,
-              firestoreService: _firestoreService,
+              storageService: _storageService,
               notificationService: _notificationService,
             ),
           ),
@@ -109,8 +108,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     };
 
-    final tasksBox = _hiveService.taskBox;
-    final completedTasks = tasksBox.values
+    final allTasks = _storageService.getAllTasks();
+    final completedTasks = allTasks
         .where((task) => task.isCompleted && task.taskType != null)
         .toList();
     if (completedTasks.isNotEmpty) {
@@ -193,44 +192,79 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTasksTab() {
-    return ValueListenableBuilder(
-      valueListenable: _hiveService.taskBox.listenable(),
-      builder: (context, Box<CropTask> box, _) {
-        final tasks = box.values.toList();
-        tasks.sort((a, b) => a.date.compareTo(b.date));
+    final tasks = _storageService.getAllTasks();
+    tasks.sort((a, b) => a.date.compareTo(b.date));
 
-        if (tasks.isEmpty) {
-          return const Center(child: Text('No tasks yet'));
-        }
+    if (tasks.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.task_alt, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No tasks yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text('Add your first farming task!', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(12),
-          itemCount: tasks.length,
-          separatorBuilder: (_, __) => const Divider(),
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return ListTile(
-              title: Text(task.taskDescription),
-              subtitle: Text('${task.cropName} • ${task.date.toLocal().toString().split(' ')[0]}'),
-              trailing: Icon(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _storageService.syncPendingItems();
+        setState(() {}); // Refresh the UI
+      },
+      child: ListView.separated(
+        padding: const EdgeInsets.all(12),
+        itemCount: tasks.length,
+        separatorBuilder: (_, __) => const Divider(),
+        itemBuilder: (context, index) {
+          final task = tasks[index];
+          return Card(
+            child: ListTile(
+              leading: Icon(
                 task.isCompleted ? Icons.check_circle : Icons.circle_outlined,
                 color: task.isCompleted ? Colors.green : Colors.grey,
+                size: 28,
               ),
-              onTap: () {
+              title: Text(
+                task.taskDescription,
+                style: TextStyle(
+                  decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${task.cropName} • ${task.date.toLocal().toString().split(' ')[0]}'),
+                  if (task.priority != null)
+                    Text(
+                      'Priority: ${task.priority}',
+                      style: TextStyle(
+                        color: task.priority == 'High' ? Colors.red : Colors.orange,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+              onTap: () async {
                 setState(() {
                   task.isCompleted = !task.isCompleted;
-                  task.save();
                 });
+                await _storageService.addOrUpdateTask(task);
+                setState(() {}); // Refresh UI
               },
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildMarketTab() => const MarketplaceScreen();
   Widget _buildSettingsTab() => const SettingsScreen(); // ✅
+  Widget _buildGeminiChatTab() => const AiAssistantScreen(); // 👈 New tab widget for AI chat
 
   void _openAddProductScreen() {
     Navigator.push(
@@ -243,20 +277,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = [
-      _buildDashboardTab(),       // Index 0
-      const CalendarScreen(),     // Index 1
-      _buildTasksTab(),           // Index 2
-      _buildMarketTab(),          // Index 3
-      _buildSettingsTab(),        // Index 4 ✅
-    ];
+    final isBuyerOnly = _currentUser?.role == UserRole.buyer;
+    
+    // Build tabs based on user role
+    final List<Widget> tabs = [];
+    final List<BottomNavigationBarItem> navItems = [];
+    
+    if (!isBuyerOnly) {
+      // Farmers and both roles get farming features
+      tabs.addAll([
+        _buildDashboardTab(),       // Index 0
+        const CalendarScreen(),     // Index 1
+        _buildTasksTab(),           // Index 2
+      ]);
+      navItems.addAll([
+        const BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        const BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
+        const BottomNavigationBarItem(icon: Icon(Icons.task_alt), label: 'Tasks'),
+      ]);
+    }
+    
+    // All users get marketplace
+    tabs.add(_buildMarketTab());
+    navItems.add(const BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Market'));
+    
+    // All users get settings and AI chat
+    tabs.addAll([
+      _buildSettingsTab(),
+      _buildGeminiChatTab(),
+    ]);
+    navItems.addAll([
+      const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+      const BottomNavigationBarItem(icon: Icon(Icons.smart_toy), label: 'AI Chat'),
+    ]);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AgroFlow'),
+        title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
-          if (_selectedIndex == 3)
+          // Show add product button when on marketplace tab
+          if (_selectedIndex == (isBuyerOnly ? 0 : 3))
             IconButton(
               icon: const Icon(Icons.add_shopping_cart),
               tooltip: 'Add Product',
@@ -268,19 +329,17 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.green.shade100,
         currentIndex: _selectedIndex,
-        onTap: _onTabSelected,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
         selectedItemColor: Colors.green.shade700,
         unselectedItemColor: Colors.grey.shade700,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(icon: Icon(Icons.task_alt), label: 'Tasks'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Market'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'), // ✅
-        ],
+        items: navItems,
       ),
-      floatingActionButton: _selectedIndex == 2
+      floatingActionButton: (!isBuyerOnly && _selectedIndex == 2)
           ? FloatingActionButton(
               backgroundColor: Colors.green.shade700,
               child: const Icon(Icons.add),
@@ -289,8 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => AddTaskScreen(
-                      hiveService: _hiveService,
-                      firestoreService: _firestoreService,
+                      storageService: _storageService,
                       notificationService: _notificationService,
                     ),
                   ),

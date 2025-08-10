@@ -1,4 +1,5 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "cmake.sourceDirectory": "/home/brian/Desktop/agroflow/linux"
+    "cmake.sourceDirectory": "/home/brian/Desktop/agroflow/linux",
+    "kiroAgent.configureMCP": "Disabled"
 }

@@ -124,14 +124,9 @@ class HiveService {
     return settingsBox.get('first_launch', defaultValue: true);
   }
 
-  // Placeholder (optional)
-  void init() {}
-
-  Future<void> updateTask(CropTask task) async {}
-
-  Future<void> addCropTask(CropTask task) async {}
-
   Future<void> saveTask(CropTask newTask) async {}
 
-  Future<void> saveProduct(Product product) async {}
+  void init() {}
+
+  // Clean up - removed duplicate/placeholder methods
 }

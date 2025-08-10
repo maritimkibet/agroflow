@@ -89,6 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
 
+      // ignore: use_build_context_synchronously
       Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
       setState(() {

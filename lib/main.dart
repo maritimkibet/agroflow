@@ -12,6 +12,7 @@ import 'services/hive_service.dart';
 import 'services/notification_service.dart';
 
 import 'screens/splash_screen.dart';
+import 'screens/profile_setup_screen.dart';
 import 'auth/login_screen.dart';
 import 'auth/register_screen.dart';
 import 'screens/home_screen.dart';
@@ -20,9 +21,11 @@ import 'wrappers/auth_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize critical services only
   await Firebase.initializeApp();
   await Hive.initFlutter();
 
+  // Register adapters (fast operation)
   Hive.registerAdapter(CropTaskAdapter());
   Hive.registerAdapter(UserAdapter());
   Hive.registerAdapter(UserRoleAdapter());
@@ -32,39 +35,58 @@ void main() async {
   Hive.registerAdapter(CropDataAdapter());
   Hive.registerAdapter(WateringScheduleAdapter());
 
-  await Hive.openBox<CropTask>(HiveService.taskBoxName);
-  await Hive.openBox<User>(HiveService.userBoxName);
-  await Hive.openBox<Product>(HiveService.productBoxName);
-  await Hive.openBox<CropData>(HiveService.cropDataBoxName);
-  await Hive.openBox(HiveService.settingsBoxName);
-
-  final taskBox = Hive.box<CropTask>(HiveService.taskBoxName);
-  for (var task in taskBox.values) {
-    await task.save();
-  }
-
-  final hiveService = HiveService();
-  await hiveService.initializeCropData();
-
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  await notificationService.scheduleTaskNotifications();
+  // Open essential boxes only
+  await Future.wait([
+    Hive.openBox<User>(HiveService.userBoxName),
+    Hive.openBox(HiveService.settingsBoxName),
+  ]);
 
   final databaseRef = FirebaseDatabase.instance.ref();
 
-  runApp(MyApp(
-    notificationService: notificationService,
-    databaseRef: databaseRef,
-  ));
+  runApp(
+    MyApp(databaseRef: databaseRef),
+  );
+
+  // Initialize remaining services in background after app starts
+  _initializeBackgroundServices();
+}
+
+void _initializeBackgroundServices() async {
+  try {
+    // Open remaining boxes
+    await Future.wait([
+      Hive.openBox<CropTask>(HiveService.taskBoxName),
+      Hive.openBox<Product>(HiveService.productBoxName),
+      Hive.openBox<CropData>(HiveService.cropDataBoxName),
+    ]);
+
+    // Initialize services in background
+    final hiveService = HiveService();
+    final notificationService = NotificationService();
+    
+    await Future.wait([
+      hiveService.initializeCropData(),
+      notificationService.initialize(),
+    ]);
+
+    // Schedule notifications after initialization
+    await notificationService.scheduleTaskNotifications();
+
+    // Save existing tasks (if any)
+    final taskBox = Hive.box<CropTask>(HiveService.taskBoxName);
+    for (var task in taskBox.values) {
+      task.save(); // Remove await to make it non-blocking
+    }
+  } catch (e) {
+    debugPrint('Background initialization error: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {
-  final NotificationService notificationService;
   final DatabaseReference databaseRef;
 
   const MyApp({
     super.key,
-    required this.notificationService,
     required this.databaseRef,
   });
 
@@ -87,6 +109,7 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => const AuthWrapper(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/profile_setup': (context) => const ProfileSetupScreen(),
         '/home': (context) => const HomeScreen(),
       },
     );

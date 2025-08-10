@@ -1,5 +1,3 @@
-// ignore_for_file: dead_code
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
@@ -64,7 +62,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         builder: (_) => AddProductScreen(existingProduct: product),
       ),
     );
-    // Reload product after editing (in case it was updated)
     if (mounted) setState(() {});
   }
 
@@ -95,97 +92,101 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ],
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 80),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildProductImage(context),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildProductImage(context),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeaderRow(context, product),
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      _buildHeaderRow(context, product),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _buildChip(
-                            _getListingTypeLabel(product.listingType),
-                            _getListingTypeColor(product.listingType),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildChip(
-                            _getProductTypeLabel(product.type),
-                            Colors.blue.shade100,
-                          ),
-                        ],
+                      _buildChip(
+                        _getListingTypeLabel(product.listingType),
+                        _getListingTypeColor(product.listingType),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Description',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        product.description,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 24),
-                      if (product.location != null && product.location!.isNotEmpty) ...[
-                        const Text(
-                          'Location',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                product.location!,
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      const Text(
-                        'Listed on',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        formattedDate,
-                        style: const TextStyle(fontSize: 16),
+                      const SizedBox(width: 8),
+                      _buildChip(
+                        _getProductTypeLabel(product.type),
+                        Colors.blue.shade100,
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Description',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    product.description,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 24),
+                  if (product.location != null && product.location!.isNotEmpty) ...[
+                    const Text(
+                      'Location',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            product.location!,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (product.contactNumber != null && product.contactNumber!.isNotEmpty) ...[
+                    const Text(
+                      'Contact Number',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      product.contactNumber!,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  const Text(
+                    'Listed on',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (!isSeller)
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: _buildContactSellerButton(context),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -210,58 +211,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ? CachedNetworkImage(
                 imageUrl: product.images!.first,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                placeholder: (context, url) =>
+                    const Center(child: CircularProgressIndicator()),
                 errorWidget: (context, url, error) => Center(
-                  child: Icon(
-                    _getProductTypeIcon(product.type),
-                    size: 80,
-                    color: Colors.grey,
-                  ),
+                  child: Icon(_getProductTypeIcon(product.type), size: 80, color: Colors.grey),
                 ),
               )
             : Center(
-                child: Icon(
-                  _getProductTypeIcon(product.type),
-                  size: 80,
-                  color: Colors.grey,
-                ),
+                child: Icon(_getProductTypeIcon(product.type), size: 80, color: Colors.grey),
               ),
-      ),
-    );
-  }
-
-  Widget _buildContactSellerButton(BuildContext context) {
-    // You can add real contact logic here
-    bool hasContactInfo = true; // TODO: Replace with real check
-
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: hasContactInfo
-            ? () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contact functionality coming soon')),
-                );
-              }
-            : null,
-        icon: const Icon(Icons.message),
-        label: Text(
-          product.listingType == ListingType.buy ? 'Contact Buyer' : 'Contact Seller',
-          style: const TextStyle(fontSize: 16),
-        ),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: hasContactInfo
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
       ),
     );
   }
@@ -290,16 +248,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget _buildHeaderRow(BuildContext context, Product product) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          flex: 2,
           child: Text(
             product.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(width: 8),
