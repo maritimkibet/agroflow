@@ -43,6 +43,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _storageService.startSyncMonitoring(); // Start monitoring connectivity
     _checkFirstLaunch();
     _loadWeather();
+    _checkSyncStatus();
+  }
+
+  Future<void> _checkSyncStatus() async {
+    final syncStatus = await _storageService.getSyncStatus();
+    if (mounted && syncStatus['pendingItems'] > 0) {
+      // Show sync indicator if there are pending items
+      setState(() {});
+    }
   }
 
   Future<void> _checkFirstLaunch() async {
@@ -316,6 +325,38 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
+          // Sync status indicator
+          FutureBuilder<Map<String, dynamic>>(
+            future: _storageService.getSyncStatus(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final syncStatus = snapshot.data!;
+                final isOnline = syncStatus['isOnline'] as bool;
+                final pendingItems = syncStatus['pendingItems'] as int;
+                
+                if (pendingItems > 0) {
+                  return IconButton(
+                    icon: Icon(
+                      Icons.sync,
+                      color: isOnline ? Colors.orange : Colors.red,
+                    ),
+                    tooltip: '$pendingItems items pending sync',
+                    onPressed: () async {
+                      if (isOnline) {
+                        await _storageService.syncPendingItems();
+                        setState(() {});
+                      }
+                    },
+                  );
+                } else if (isOnline) {
+                  return const Icon(Icons.cloud_done, color: Colors.white);
+                } else {
+                  return const Icon(Icons.cloud_off, color: Colors.grey);
+                }
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           // Show add product button when on marketplace tab
           if (_selectedIndex == (isBuyerOnly ? 0 : 3))
             IconButton(

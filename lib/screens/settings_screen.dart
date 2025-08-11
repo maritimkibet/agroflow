@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/hybrid_storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -212,13 +213,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Selectively clear Hive boxes
   Future<void> _clearHiveBoxes() async {
     try {
-      final boxNamesToClear = ['taskBox', 'userBox', 'settingsBox']; // your Hive box names here
+      // Use the correct box names from HiveService
+      final boxNamesToClear = [
+        'crop_tasks',
+        'users', 
+        'products',
+        'crop_data',
+        'settings',
+        'sync_queue'
+      ];
+      
       for (final boxName in boxNamesToClear) {
-        if (Hive.isBoxOpen(boxName)) {
-          final box = Hive.box(boxName);
-          await box.clear();
-          await box.close();
-          await Hive.deleteBoxFromDisk(boxName);
+        try {
+          if (Hive.isBoxOpen(boxName)) {
+            final box = Hive.box(boxName);
+            await box.clear();
+          }
+        } catch (e) {
+          // Continue with other boxes if one fails
+          debugPrint('Failed to clear box $boxName: $e');
         }
       }
     } catch (e) {
@@ -227,33 +240,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _confirmLogout() async {
-    final shouldLogout = await showDialog<bool>(
+    final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to logout? All local data will be cleared.'),
+        title: const Text('Logout Options'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Choose how you want to logout:'),
+            SizedBox(height: 16),
+            Text('• Keep Data: Your tasks and settings will be saved for next login'),
+            SizedBox(height: 8),
+            Text('• Clear Data: All local data will be removed (your account stays safe)'),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(context).pop('cancel'),
             child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('keep_data'),
+            child: const Text('Keep Data'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.orange,
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Logout'),
+            onPressed: () => Navigator.of(context).pop('clear_data'),
+            child: const Text('Clear Data'),
           ),
         ],
       ),
     );
 
-    if (shouldLogout == true) {
-      await _logout();
+    if (result == 'keep_data') {
+      await _logoutKeepData();
+    } else if (result == 'clear_data') {
+      await _logoutClearData();
     }
   }
 
-  Future<void> _logout() async {
+  /// Logout while keeping local data (user can resume where they left off)
+  Future<void> _logoutKeepData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // 1. Sync any pending data to Firebase before logout
+      try {
+        final hybridStorage = HybridStorageService();
+        await hybridStorage.syncPendingItems();
+      } catch (e) {
+        // Sync failed, but continue with logout
+        _showSnackBar('Some data may not be synced: $e');
+      }
+
+      // 2. Sign out from Firebase only
+      await _auth.signOut();
+
+      // 3. Navigate to auth wrapper (data preserved)
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/auth', (route) => false);
+      
+      _showSnackBar('Logged out successfully. Your data is preserved.');
+    } catch (e) {
+      _showSnackBar('Logout failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Logout and clear all local data (fresh start)
+  Future<void> _logoutClearData() async {
     try {
       setState(() {
         _isLoading = true;
@@ -269,11 +334,167 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 3. Clear selected Hive boxes
       await _clearHiveBoxes();
 
-      // 4. Navigate to login and remove all previous routes (app restart effect)
+      // 4. Navigate to auth wrapper and remove all previous routes
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil('/auth', (route) => false);
+      
+      _showSnackBar('Logged out and cleared all local data.');
     } catch (e) {
       _showSnackBar('Logout failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Confirm and delete user account permanently
+  Future<void> _confirmDeleteAccount() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Delete Account'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will PERMANENTLY delete:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Your user account'),
+            Text('• All your farming tasks'),
+            Text('• Your marketplace products'),
+            Text('• Your profile and settings'),
+            SizedBox(height: 16),
+            Text(
+              'This action CANNOT be undone!',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('DELETE FOREVER'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await _deleteAccount();
+    }
+  }
+
+  /// Delete user account and all associated data
+  Future<void> _deleteAccount() async {
+    if (_currentUser == null) return;
+
+    // Get current password for reauthentication
+    final password = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final passwordController = TextEditingController();
+        return AlertDialog(
+          title: const Text('Confirm Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter your current password to confirm account deletion:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Current Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(passwordController.text),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (password == null || password.isEmpty) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // 1. Reauthenticate user
+      final success = await _reauthenticate(password);
+      if (!success) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 2. Delete user data from Firestore
+      await _firestore.collection('users').doc(_currentUser!.uid).delete();
+
+      // 3. Delete user's products from marketplace
+      final productsQuery = await _firestore
+          .collection('products')
+          .where('sellerId', isEqualTo: _currentUser!.uid)
+          .get();
+      
+      for (final doc in productsQuery.docs) {
+        await doc.reference.delete();
+      }
+
+      // 4. Delete user's tasks from Firestore
+      final tasksQuery = await _firestore
+          .collection('crop_tasks')
+          .where('userId', isEqualTo: _currentUser!.uid)
+          .get();
+      
+      for (final doc in tasksQuery.docs) {
+        await doc.reference.delete();
+      }
+
+      // 5. Clear local data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      await _clearHiveBoxes();
+
+      // 6. Delete Firebase Auth account
+      await _currentUser!.delete();
+
+      // 7. Navigate to auth wrapper
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/auth', (route) => false);
+      
+      _showSnackBar('Account deleted successfully.');
+    } catch (e) {
+      _showSnackBar('Failed to delete account: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -400,6 +621,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       enabled: !_isLoading,
                     ),
+                    const SizedBox(height: 30),
+
+                    // Sync Section
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Data Sync',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<Map<String, dynamic>>(
+                      future: HybridStorageService().getSyncStatus(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final syncStatus = snapshot.data!;
+                          final isOnline = syncStatus['isOnline'] as bool;
+                          final pendingItems = syncStatus['pendingItems'] as int;
+                          
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        isOnline ? Icons.cloud_done : Icons.cloud_off,
+                                        color: isOnline ? Colors.green : Colors.red,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        isOnline ? 'Online' : 'Offline',
+                                        style: TextStyle(
+                                          color: isOnline ? Colors.green : Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (pendingItems > 0)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '$pendingItems pending',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  if (pendingItems > 0) ...[
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        icon: const Icon(Icons.sync),
+                                        label: const Text('Sync Now'),
+                                        onPressed: isOnline ? () async {
+                                          try {
+                                            await HybridStorageService().syncPendingItems();
+                                            setState(() {});
+                                            _showSnackBar('Sync completed successfully');
+                                          } catch (e) {
+                                            _showSnackBar('Sync failed: $e');
+                                          }
+                                        } : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        return const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 16),
+                                Text('Checking sync status...'),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.cloud_sync),
+                        label: const Text('Force Sync All Data'),
+                        onPressed: _isLoading ? null : () async {
+                          try {
+                            setState(() => _isLoading = true);
+                            await HybridStorageService().forceSyncAll();
+                            _showSnackBar('All data synced successfully');
+                          } catch (e) {
+                            _showSnackBar('Force sync failed: $e');
+                          } finally {
+                            setState(() => _isLoading = false);
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 40),
                     SizedBox(
                       width: double.infinity,
@@ -427,9 +770,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.logout, color: Colors.red),
+                        icon: const Icon(Icons.logout, color: Colors.orange),
                         label: const Text('Logout'),
                         onPressed: _isLoading ? null : _confirmLogout,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_forever, color: Colors.red),
+                        label: const Text('Delete Account'),
+                        onPressed: _isLoading ? null : _confirmDeleteAccount,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
