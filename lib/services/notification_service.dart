@@ -4,6 +4,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/crop_task.dart';
 import 'hive_service.dart';
+import 'platform_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -16,6 +17,12 @@ class NotificationService {
   NotificationService._internal();
 
   Future<void> initialize() async {
+    // Check if platform supports notifications
+    if (!PlatformService.instance.supportsFeature(PlatformFeature.notifications)) {
+      debugPrint('Notifications not supported on this platform');
+      return;
+    }
+
     tz_data.initializeTimeZones();
 
     // Set local timezone for scheduling

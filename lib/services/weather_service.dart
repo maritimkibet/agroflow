@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'platform_service.dart';
 
 class WeatherService {
   final String _apiKey = '521524a9f71eae6f1e35b3122388862a';
@@ -10,10 +11,27 @@ class WeatherService {
   /// Returns null on failure.
   Future<Map<String, dynamic>?> getCurrentWeather() async {
     try {
+      // Check if platform supports location
+      if (!PlatformService.instance.supportsFeature(PlatformFeature.location)) {
+        // Use default location (Nairobi, Kenya) for desktop/web
+        return await _getWeatherByCoordinates(-1.2921, 36.8219);
+      }
+
       final position = await _determinePosition();
+      return await _getWeatherByCoordinates(position.latitude, position.longitude);
+    } catch (e) {
+      debugPrint("WeatherService error: $e");
+      // Fallback to default location on error
+      return await _getWeatherByCoordinates(-1.2921, 36.8219);
+    }
+  }
+
+  /// Get weather by specific coordinates
+  Future<Map<String, dynamic>?> _getWeatherByCoordinates(double lat, double lon) async {
+    try {
       final url = Uri.parse(
         'https://api.openweathermap.org/data/2.5/weather'
-        '?lat=${position.latitude}&lon=${position.longitude}'
+        '?lat=$lat&lon=$lon'
         '&units=metric&appid=$_apiKey',
       );
 
@@ -45,7 +63,7 @@ class WeatherService {
         return null;
       }
     } catch (e) {
-      debugPrint("WeatherService error: $e");
+      debugPrint("Weather API error: $e");
       return null;
     }
   }

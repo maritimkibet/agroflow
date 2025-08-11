@@ -94,17 +94,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AgroFlow',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          primary: Colors.green.shade700,
-          secondary: Colors.brown.shade600,
-        ),
-        useMaterial3: true,
+    final platformService = PlatformService.instance;
+    final baseTheme = ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.green,
+        primary: Colors.green.shade700,
+        secondary: Colors.brown.shade600,
       ),
+      useMaterial3: true,
+    );
+
+    return MaterialApp(
+      title: platformService.getAppTitle(),
+      debugShowCheckedModeBanner: false,
+      theme: platformService.getPlatformTheme(baseTheme),
       initialRoute: '/',
       routes: {
         '/': (context) => SplashScreen(databaseRef: databaseRef),
