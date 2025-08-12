@@ -1,5 +1,5 @@
 name: agroflow
-description: "AgroFlow - A smart assistant for farmers to manage crop tasks and markets."
+description: "AgroFlow - Smart AI-powered farming assistant for global agriculture and marketplace."
 version: 1.0.0+1
 
 environment:
@@ -44,6 +44,9 @@ dependencies:
   http: ^1.2.1
   geolocator: ^11.0.0
   connectivity_plus: ^6.0.5
+  
+  # App updates and info
+  package_info_plus: ^8.0.2
 
   # Voice input/output for AI assistant
   # speech_to_text: ^6.6.2  # Temporarily disabled due to build issues
@@ -63,13 +66,21 @@ dev_dependencies:
   # Launcher icon generation
   flutter_launcher_icons: ^0.13.1
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
-  web: true
-  windows: true
-  macos: true
-  linux: true
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  linux:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
   image_path: "assets/icon/app_icon.png"
 
 flutter:

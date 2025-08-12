@@ -37,6 +37,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Custom APK naming
+    applicationVariants.all {
+        outputs.all {
+            val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            outputImpl.outputFileName = "AgroFlow.apk"
+        }
+    }
 }
 
 dependencies {

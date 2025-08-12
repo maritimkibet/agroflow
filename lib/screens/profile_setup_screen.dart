@@ -158,21 +158,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // County Field
+                // Location Field (Global)
                 TextFormField(
                   controller: _countyController,
                   decoration: InputDecoration(
-                    labelText: 'County/Region',
+                    labelText: 'Location (City, State/Province, Country)',
                     prefixIcon: const Icon(Icons.location_on),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
                     fillColor: Colors.white,
+                    hintText: 'e.g., Nairobi, Kenya or Texas, USA',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your county or region';
+                      return 'Please enter your location';
                     }
                     return null;
                   },

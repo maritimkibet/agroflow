@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../models/product.dart';
+import '../../services/platform_service.dart';
 import '../onboarding_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -68,6 +69,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Future<void> _takePicture() async {
+    // Check if platform supports camera
+    if (!PlatformService.instance.supportsFeature(PlatformFeature.camera)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(PlatformService.instance.getPlatformErrorMessage('Camera')),
+        ),
+      );
+      return;
+    }
+
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
     if (pickedFile != null) {
@@ -420,16 +431,30 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                               height: 120,
                                               color: Colors.grey.shade200,
                                               child: const Center(
-                                                child: CircularProgressIndicator(),
+                                                child: CircularProgressIndicator(strokeWidth: 2),
                                               ),
                                             );
                                           },
                                           errorBuilder: (context, error, stackTrace) {
+                                            debugPrint('Image load error: $error');
                                             return Container(
                                               width: 120,
                                               height: 120,
                                               color: Colors.grey.shade200,
-                                              child: const Icon(Icons.error),
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.broken_image, color: Colors.grey),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Image failed',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.grey.shade600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             );
                                           },
                                         ),

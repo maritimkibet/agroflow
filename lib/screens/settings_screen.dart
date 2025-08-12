@@ -8,6 +8,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/hybrid_storage_service.dart';
+import '../services/update_service.dart';
+import '../models/user.dart' as app_user;
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,6 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final UpdateService _updateService = UpdateService();
+  
+  bool _checkingForUpdates = false;
 
   final TextEditingController _currentPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
@@ -511,6 +517,249 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _checkForUpdatesManually() async {
+    setState(() {
+      _checkingForUpdates = true;
+    });
+
+    try {
+      final updateInfo = await _updateService.forceCheckForUpdates();
+      
+      if (updateInfo != null) {
+        if (mounted) {
+          await _updateService.showUpdateDialog(context, updateInfo);
+        }
+      } else {
+        _showSnackBar('You have the latest version!');
+      }
+    } catch (e) {
+      _showSnackBar('Failed to check for updates: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checkingForUpdates = false;
+        });
+      }
+    }
+  }
+
+  IconData _getRoleIcon(app_user.UserRole role) {
+    switch (role) {
+      case app_user.UserRole.farmer:
+        return Icons.agriculture;
+      case app_user.UserRole.buyer:
+        return Icons.shopping_cart;
+      case app_user.UserRole.both:
+        return Icons.swap_horiz;
+    }
+  }
+
+  String _getRoleDisplayName(app_user.UserRole role) {
+    switch (role) {
+      case app_user.UserRole.farmer:
+        return 'Farmer';
+      case app_user.UserRole.buyer:
+        return 'Buyer/Seller';
+      case app_user.UserRole.both:
+        return 'Farmer & Seller';
+    }
+  }
+
+  String _getRoleDescription(app_user.UserRole role) {
+    switch (role) {
+      case app_user.UserRole.farmer:
+        return 'Access to farming tools, tasks, and calendar';
+      case app_user.UserRole.buyer:
+        return 'Access to marketplace and trading features';
+      case app_user.UserRole.both:
+        return 'Full access to all farming and marketplace features';
+    }
+  }
+
+  String _getUpgradeText(app_user.UserRole role) {
+    switch (role) {
+      case app_user.UserRole.farmer:
+        return 'Add Selling Features';
+      case app_user.UserRole.buyer:
+        return 'Add Farming Features';
+      case app_user.UserRole.both:
+        return 'Already have all features';
+    }
+  }
+
+  Future<void> _showRoleUpgradeDialog(app_user.User user) async {
+    final newRole = user.role == app_user.UserRole.farmer ? app_user.UserRole.both : app_user.UserRole.both;
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Expand Your Role'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Upgrade from ${_getRoleDisplayName(user.role)} to ${_getRoleDisplayName(newRole)}'),
+            const SizedBox(height: 16),
+            const Text('You\'ll gain access to:'),
+            const SizedBox(height: 8),
+            if (user.role == app_user.UserRole.farmer) ...[
+              const Text('• Marketplace for selling your produce'),
+              const Text('• Product listing and management'),
+              const Text('• Market price analysis'),
+              const Text('• Customer communication tools'),
+            ] else ...[
+              const Text('• Farming task management'),
+              const Text('• Crop calendar and planning'),
+              const Text('• Weather-based farming advice'),
+              const Text('• Agricultural AI assistant'),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All your current data will be preserved. This change is permanent.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Upgrade Role'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _upgradeUserRole(user, newRole);
+    }
+  }
+
+  Future<void> _upgradeUserRole(app_user.User user, app_user.UserRole newRole) async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Update user role
+      user.role = newRole;
+      
+      // Save to both local and Firebase
+      final storageService = HybridStorageService();
+      await storageService.saveUserProfile(user);
+      
+      _showSnackBar('Role upgraded successfully! Restart the app to see new features.');
+      
+      // Show feature highlight tutorial
+      if (mounted) {
+        _showFeatureHighlights(newRole);
+      }
+      
+    } catch (e) {
+      _showSnackBar('Failed to upgrade role: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showFeatureHighlights(app_user.UserRole newRole) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🎉 Welcome to Your New Features!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Here\'s what\'s new for you:'),
+            const SizedBox(height: 16),
+            if (newRole == app_user.UserRole.both) ...[
+              _buildFeatureHighlight(
+                Icons.shopping_cart,
+                'Marketplace Tab',
+                'Tap the shopping cart icon to list your products for sale',
+              ),
+              _buildFeatureHighlight(
+                Icons.add_shopping_cart,
+                'Add Product Button',
+                'Use the + button in marketplace to create new listings',
+              ),
+              _buildFeatureHighlight(
+                Icons.psychology,
+                'Enhanced AI',
+                'AI assistant now provides selling and marketing advice',
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureHighlight(IconData icon, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.green.shade700, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -620,6 +869,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         border: OutlineInputBorder(),
                       ),
                       enabled: !_isLoading,
+                    ),
+                    const SizedBox(height: 30),
+
+                    // App Updates Section
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'App Updates',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.system_update, color: Colors.green.shade600),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'App Version',
+                                        style: TextStyle(fontWeight: FontWeight.w500),
+                                      ),
+                                      FutureBuilder<PackageInfo>(
+                                        future: PackageInfo.fromPlatform(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.hasData) {
+                                            return Text(
+                                              'Version ${snapshot.data!.version} (${snapshot.data!.buildNumber})',
+                                              style: TextStyle(color: Colors.grey.shade600),
+                                            );
+                                          }
+                                          return Text(
+                                            'Loading...',
+                                            style: TextStyle(color: Colors.grey.shade600),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: _checkingForUpdates 
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Icon(Icons.refresh),
+                                label: Text(_checkingForUpdates ? 'Checking...' : 'Check for Updates'),
+                                onPressed: _checkingForUpdates ? null : _checkForUpdatesManually,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Role Management Section
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Account Role',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<app_user.User?>(
+                      future: Future.value(HybridStorageService().getCurrentUser()),
+                      builder: (context, snapshot) {
+                        final user = snapshot.data;
+                        if (user == null) return const SizedBox();
+                        
+                        return Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(_getRoleIcon(user.role), color: Colors.green.shade600),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Current Role: ${_getRoleDisplayName(user.role)}',
+                                            style: const TextStyle(fontWeight: FontWeight.w500),
+                                          ),
+                                          Text(
+                                            _getRoleDescription(user.role),
+                                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (user.role != app_user.UserRole.both) ...[
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.swap_horiz),
+                                      label: Text(_getUpgradeText(user.role)),
+                                      onPressed: () => _showRoleUpgradeDialog(user),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue.shade600,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 30),
 

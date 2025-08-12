@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class PlatformService {
   static PlatformService? _instance;
@@ -15,7 +14,7 @@ class PlatformService {
   /// Get current platform information
   PlatformInfo get platformInfo {
     if (kIsWeb) {
-      return PlatformInfo(
+      return const PlatformInfo(
         type: PlatformType.web,
         name: 'Web',
         supportsNotifications: false,
@@ -27,7 +26,7 @@ class PlatformService {
     
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.android,
           name: 'Android',
           supportsNotifications: true,
@@ -36,7 +35,7 @@ class PlatformService {
           supportsLocation: true,
         );
       case TargetPlatform.iOS:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.ios,
           name: 'iOS',
           supportsNotifications: true,
@@ -45,7 +44,7 @@ class PlatformService {
           supportsLocation: true,
         );
       case TargetPlatform.windows:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.windows,
           name: 'Windows',
           supportsNotifications: false,
@@ -54,7 +53,7 @@ class PlatformService {
           supportsLocation: false,
         );
       case TargetPlatform.macOS:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.macos,
           name: 'macOS',
           supportsNotifications: false,
@@ -63,7 +62,7 @@ class PlatformService {
           supportsLocation: false,
         );
       case TargetPlatform.linux:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.linux,
           name: 'Linux',
           supportsNotifications: false,
@@ -72,7 +71,7 @@ class PlatformService {
           supportsLocation: false,
         );
       default:
-        return PlatformInfo(
+        return const PlatformInfo(
           type: PlatformType.unknown,
           name: 'Unknown',
           supportsNotifications: false,

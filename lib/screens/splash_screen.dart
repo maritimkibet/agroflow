@@ -108,9 +108,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 8),
               Text(
-                'Smart Farming Assistant',
+                'You plant, we maintain.',
                 style: TextStyle(
                   fontSize: 16,
+                  fontStyle: FontStyle.italic,
                   color: Colors.brown.shade600,
                 ),
               ),

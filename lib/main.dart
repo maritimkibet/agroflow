@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -14,6 +13,7 @@ import 'services/notification_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/profile_setup_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'auth/login_screen.dart';
 import 'auth/register_screen.dart';
 import 'screens/home_screen.dart';
@@ -107,7 +107,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: platformService.getAppTitle(),
       debugShowCheckedModeBanner: false,
-      theme: platformService.getPlatformTheme(baseTheme),
+      theme: platformService.getPlatformTheme(baseTheme).copyWith(
+        scaffoldBackgroundColor: Colors.green.shade50, // Prevent dark screen
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => SplashScreen(databaseRef: databaseRef),
@@ -115,6 +117,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/profile_setup': (context) => const ProfileSetupScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),
         '/home': (context) => const HomeScreen(),
       },
     );

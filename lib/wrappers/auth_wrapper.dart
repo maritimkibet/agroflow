@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_setup_screen.dart';
+import '../screens/onboarding_screen.dart';
 import '../auth/login_screen.dart';
 import '../services/hybrid_storage_service.dart';
 
@@ -25,22 +27,26 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
 
-        // If user is logged in, check if profile is complete
-        return FutureBuilder(
-          future: _checkProfileComplete(),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+        // If user is logged in, check profile and onboarding status
+        return FutureBuilder<Map<String, bool>>(
+          future: _checkUserStatus(),
+          builder: (context, statusSnapshot) {
+            if (statusSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
 
-            final isProfileComplete = profileSnapshot.data ?? false;
+            final status = statusSnapshot.data ?? {'profile': false, 'onboarding': false};
+            final isProfileComplete = status['profile'] ?? false;
+            final isOnboardingComplete = status['onboarding'] ?? false;
             
-            if (isProfileComplete) {
-              return const HomeScreen();
-            } else {
+            if (!isProfileComplete) {
               return const ProfileSetupScreen();
+            } else if (!isOnboardingComplete) {
+              return const OnboardingScreen();
+            } else {
+              return const HomeScreen();
             }
           },
         );
@@ -48,14 +54,22 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 
-  Future<bool> _checkProfileComplete() async {
+  Future<Map<String, bool>> _checkUserStatus() async {
     try {
       final storageService = HybridStorageService();
       final user = storageService.getCurrentUser();
-      return user != null && user.name.isNotEmpty;
+      final isProfileComplete = user != null && user.name.isNotEmpty;
+      
+      final prefs = await SharedPreferences.getInstance();
+      final isOnboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+      
+      return {
+        'profile': isProfileComplete,
+        'onboarding': isOnboardingComplete,
+      };
     } catch (e) {
-      debugPrint('Profile check error: $e');
-      return false;
+      debugPrint('Status check error: $e');
+      return {'profile': false, 'onboarding': false};
     }
   }
 }

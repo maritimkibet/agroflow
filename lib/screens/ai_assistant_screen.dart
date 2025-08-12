@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_tts/flutter_tts.dart';
-// import 'package:speech_to_text/speech_to_text.dart' as stt;  // Temporarily disabled
 import 'package:geolocator/geolocator.dart';
-import '../services/hive_service.dart';
+import '../services/hybrid_storage_service.dart';
 import '../services/weather_service.dart';
+import '../services/ai_analysis_service.dart';
 import '../models/user.dart';
 
 class AiAssistantScreen extends StatefulWidget {
@@ -17,31 +17,26 @@ class AiAssistantScreen extends StatefulWidget {
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = []; // conversation history
-
+  final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
   User? _currentUser;
   Map<String, dynamic>? _weatherData;
   Position? _currentPosition;
 
   late FlutterTts _flutterTts;
-  // late stt.SpeechToText _speech;  // Temporarily disabled
-  bool _isListening = false;
-
-  final HiveService _hiveService = HiveService();
+  final HybridStorageService _storageService = HybridStorageService();
   final WeatherService _weatherService = WeatherService();
 
   @override
   void initState() {
     super.initState();
     _flutterTts = FlutterTts();
-    // _speech = stt.SpeechToText();  // Temporarily disabled
     _initializeUserData();
     _addWelcomeMessage();
   }
 
   Future<void> _initializeUserData() async {
-    _currentUser = _hiveService.getCurrentUser();
+    _currentUser = _storageService.getCurrentUser();
     await _getCurrentLocation();
     await _getWeatherData();
   }
@@ -56,7 +51,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
-
       if (permission == LocationPermission.deniedForever) return;
 
       _currentPosition = await Geolocator.getCurrentPosition();
@@ -73,15 +67,39 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     }
   }
 
-  void _addWelcomeMessage() {
+  void _addWelcomeMessage() async {
     final userName = _currentUser?.name ?? 'there';
     final userRole = _currentUser?.role.name ?? 'user';
-
+    
+    // Get AI analysis for contextual welcome
+    final aiAnalysis = AIAnalysisService();
+    final insights = await aiAnalysis.analyzeAppData();
+    
+    String contextualMessage = 'Hello $userName! I\'m AgroFlow AI, your agricultural assistant. ';
+    
+    if (insights.isNotEmpty) {
+      final urgentTasks = insights.where((insight) => 
+        insight.toLowerCase().contains('urgent') || 
+        insight.toLowerCase().contains('overdue') ||
+        insight.toLowerCase().contains('immediate')).toList();
+      
+      if (urgentTasks.isNotEmpty) {
+        contextualMessage += 'I\'ve analyzed your farm data and found some urgent matters that need attention:\n\n';
+        contextualMessage += urgentTasks.take(2).join('\n\n');
+        contextualMessage += '\n\nWhat would you like to address first?';
+      } else {
+        contextualMessage += 'I\'ve analyzed your current farming situation. Here\'s what I recommend today:\n\n';
+        contextualMessage += insights.take(2).join('\n\n');
+        contextualMessage += '\n\nHow can I help you optimize your farming today?';
+      }
+    } else {
+      contextualMessage += 'I can help with farming advice, market insights, and more based on your location and weather. As a $userRole, what would you like to know today?';
+    }
+    
     setState(() {
       _messages.add({
         'role': 'ai',
-        'text':
-            'Hello $userName! I\'m AgroFlow AI, your agricultural assistant. I can help you with farming advice, market insights, and more based on your location and current weather conditions. As a $userRole, what would you like to know today?',
+        'text': contextualMessage,
       });
     });
   }
@@ -122,50 +140,51 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Future<String> _getGeminiResponse(List<Map<String, String>> messages) async {
-    const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8';
+    const apiKey = 'AIzaSyDvUIam0w81CiSBL0BaAuU-PZTJbDsEkvk';
     const url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$apiKey';
+        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$apiKey';
 
-    // Build context-aware system prompt
-    String systemPrompt = _buildSystemPrompt();
+    final systemPrompt = _buildSystemPrompt();
 
-    // Prepare conversation with context
-    String conversationText = '$systemPrompt\n\n';
-    conversationText += messages
-        .map(
-          (msg) =>
-              '${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}',
-        )
-        .join('\n');
-
-    final body = jsonEncode({
-      "contents": [
+    final contents = [
+      {
+        "parts": [
+          {"text": systemPrompt}
+        ]
+      },
+      for (var msg in messages)
         {
           "parts": [
-            {"text": conversationText},
-          ],
-        },
-      ],
-    });
+            {
+              "text":
+                  "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}"
+            }
+          ]
+        }
+    ];
 
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
-      body: body,
+      body: jsonEncode({"contents": contents}),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final aiResponse = data['candidates'][0]['content']['parts'][0]['text'];
-      return aiResponse.trim();
+      return data['candidates'][0]['content']['parts'][0]['text'].trim();
     } else {
       throw Exception('Failed to get response: ${response.body}');
     }
   }
 
   String _buildSystemPrompt() {
-    String prompt =
-        '''You are AgroFlow AI, a global agricultural and marketplace assistant. You help farmers and sellers anywhere in the world with advice tailored to their exact location.
+    final recentTasks = _storageService
+        .getAllTasks()
+        .where((task) =>
+            task.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
+        .toList();
+
+    String prompt = '''You are AgroFlow AI, a global agricultural and marketplace assistant. You analyze farming activities, weather patterns, and provide intelligent advice.
 
 User Information:
 - Role: ${_currentUser?.role.name ?? 'unknown'}
@@ -176,37 +195,29 @@ User Information:
       prompt += '''
 - GPS Coordinates: ${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}''';
     }
-
     if (_weatherData != null) {
       prompt += '''
 
-Current Weather Data:
+Current Weather:
 - Temperature: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
 - Condition: ${_weatherData!['description'] ?? 'N/A'}
 - Humidity: ${_weatherData!['humidity'] ?? 'N/A'}%
 - Wind Speed: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
     }
+    if (recentTasks.isNotEmpty) {
+      prompt += '''
 
+Recent Farming Activities (Last 30 days):''';
+      for (final task in recentTasks.take(5)) {
+        final status = task.isCompleted ? '✅ Completed' : '⏳ Pending';
+        final daysAgo = DateTime.now().difference(task.date).inDays;
+        prompt += '''
+- ${task.cropName}: ${task.taskDescription} ($status) - $daysAgo days ago''';
+      }
+    }
     prompt += '''
 
-Your tasks:
-1. Always use the location and weather data to make your advice relevant to the user's environment — including local climate patterns, planting seasons, and market trends.
-
-2. For farmers:
-- Recommend planting, irrigation, fertilization, and pest management strategies that suit the current and upcoming weather.
-- Suggest harvest timing and crop care based on seasonal conditions in their area.
-
-3. For sellers/buyers:
-- Recommend best pricing strategies for their local market conditions.
-- Suggest optimal times to sell based on demand, harvest cycles, and weather.
-- Offer marketing and presentation tips.
-
-4. If weather or location data is missing, request it before giving detailed advice.
-
-5. Keep responses clear, practical, and relevant to the location provided.
-
-6. Always consider the user's role when providing advice.''';
-
+Provide intelligent, context-aware farming advice considering the above data.''';
     return prompt;
   }
 
@@ -214,11 +225,6 @@ Your tasks:
     await _flutterTts.setLanguage('en-US');
     await _flutterTts.setPitch(1.0);
     await _flutterTts.speak(text);
-  }
-
-  Future<void> _startListening() async {
-    // Speech-to-text temporarily disabled due to build issues
-    _showError('Speech recognition temporarily unavailable');
   }
 
   void _showError(String message) {
@@ -238,58 +244,83 @@ Your tasks:
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: _messages.length,
+              itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
-                final message = _messages[index];
-                final isUser = message['role'] == 'user';
-
-                return Align(
-                  alignment:
-                      isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.all(12),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.8,
+                if (index < _messages.length) {
+                  final message = _messages[index];
+                  final isUser = message['role'] == 'user';
+                  return Align(
+                    alignment:
+                        isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.all(12),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.8,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            isUser ? Colors.green[300] : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(message['text'] ?? ''),
                     ),
-                    decoration: BoxDecoration(
-                      color: isUser ? Colors.green[300] : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
+                  );
+                } else {
+                  // Typing indicator
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "AgroFlow AI is typing...",
+                            style:
+                                TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Text(message['text'] ?? ''),
-                  ),
-                );
+                  );
+                }
               },
             ),
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-                  onPressed:
-                      _isLoading
-                          ? null
-                          : () {
-                            if (_isListening) {
-                              // _speech.stop();  // Temporarily disabled
-                              setState(() => _isListening = false);
-                            } else {
-                              _startListening();
-                            }
-                          },
+                  icon: const Icon(Icons.help_outline),
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          _showError(
+                              '💡 Tip: Ask me about farming, weather, crops, or marketplace advice!');
+                        },
+                  tooltip: 'Get help',
                 ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _isLoading ? null : _sendMessage(),
+                    onSubmitted: (_) =>
+                        _isLoading ? null : _sendMessage(),
                     decoration: const InputDecoration(
                       hintText: "Ask a farming question...",
                       border: OutlineInputBorder(),

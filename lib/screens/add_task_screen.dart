@@ -37,13 +37,81 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     _selectedDate = widget.selectedDate ?? DateTime.now();
   }
 
-  final List<String> _taskTypes = [
-    'Weeding',
-    'Spraying',
-    'Watering',
-    'Fertilizing',
-    'Harvesting',
-  ];
+  // Get current user to determine available task types
+  late final _currentUser = widget.storageService.getCurrentUser();
+  
+  // Dynamic task types based on user's farming activities
+  List<Map<String, dynamic>> get _availableTaskTypes {
+    final cropTasks = [
+      {'name': 'Land Preparation', 'icon': '🚜', 'category': 'crop'},
+      {'name': 'Planting/Sowing', 'icon': '🌱', 'category': 'crop'},
+      {'name': 'Watering/Irrigation', 'icon': '💧', 'category': 'crop'},
+      {'name': 'Weeding', 'icon': '🌿', 'category': 'crop'},
+      {'name': 'Fertilizing', 'icon': '🧪', 'category': 'crop'},
+      {'name': 'Pest Control', 'icon': '🐛', 'category': 'crop'},
+      {'name': 'Pruning', 'icon': '✂️', 'category': 'crop'},
+      {'name': 'Harvesting', 'icon': '🧺', 'category': 'crop'},
+    ];
+    
+    final livestockTasks = [
+      {'name': 'Milking', 'icon': '🥛', 'category': 'livestock'},
+      {'name': 'Feeding', 'icon': '🌾', 'category': 'livestock'},
+      {'name': 'Health Check', 'icon': '🩺', 'category': 'livestock'},
+      {'name': 'Breeding', 'icon': '💕', 'category': 'livestock'},
+      {'name': 'Pasture Management', 'icon': '🌱', 'category': 'livestock'},
+      {'name': 'Vaccination', 'icon': '💉', 'category': 'livestock'},
+    ];
+    
+    final marketingTasks = [
+      {'name': 'Market Research', 'icon': '📊', 'category': 'marketing'},
+      {'name': 'Product Listing', 'icon': '📝', 'category': 'marketing'},
+      {'name': 'Price Analysis', 'icon': '💰', 'category': 'marketing'},
+      {'name': 'Customer Contact', 'icon': '📞', 'category': 'marketing'},
+    ];
+    
+    // Return tasks based on user role
+    if (_currentUser?.role.name == 'buyer') {
+      return marketingTasks;
+    } else if (_currentUser?.role.name == 'farmer') {
+      return [...cropTasks, ...livestockTasks];
+    } else {
+      // Both role gets all tasks
+      return [...cropTasks, ...livestockTasks, ...marketingTasks];
+    }
+  }
+
+  String _getLabelForRole() {
+    switch (_currentUser?.role.name) {
+      case 'buyer':
+        return 'Product/Service';
+      case 'farmer':
+        return 'Crop/Livestock';
+      default:
+        return 'Item/Subject';
+    }
+  }
+  
+  IconData _getIconForRole() {
+    switch (_currentUser?.role.name) {
+      case 'buyer':
+        return Icons.shopping_cart;
+      case 'farmer':
+        return Icons.agriculture;
+      default:
+        return Icons.category;
+    }
+  }
+  
+  String _getHintForRole() {
+    switch (_currentUser?.role.name) {
+      case 'buyer':
+        return 'e.g., Maize, Fertilizer, Seeds';
+      case 'farmer':
+        return 'e.g., Tomatoes, Dairy Cattle, Maize';
+      default:
+        return 'e.g., Tomatoes, Market Analysis';
+    }
+  }
 
   @override
   void dispose() {
@@ -141,14 +209,15 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               children: [
                 TextFormField(
                   controller: _cropNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Crop Name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.grass),
+                  decoration: InputDecoration(
+                    labelText: _getLabelForRole(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(_getIconForRole()),
+                    hintText: _getHintForRole(),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter crop name';
+                      return 'Please enter ${_getLabelForRole().toLowerCase()}';
                     }
                     return null;
                   },
@@ -176,9 +245,17 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     prefixIcon: Icon(Icons.category),
                   ),
                   value: _selectedTaskType,
-                  items: _taskTypes
-                      .map((type) =>
-                          DropdownMenuItem(value: type, child: Text(type)))
+                  items: _availableTaskTypes
+                      .map((task) => DropdownMenuItem<String>(
+                            value: task['name'] as String,
+                            child: Row(
+                              children: [
+                                Text(task['icon'] as String, style: const TextStyle(fontSize: 18)),
+                                const SizedBox(width: 8),
+                                Text(task['name'] as String),
+                              ],
+                            ),
+                          ))
                       .toList(),
                   onChanged: (val) => setState(() => _selectedTaskType = val),
                   validator: (val) =>
