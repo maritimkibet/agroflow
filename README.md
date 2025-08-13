@@ -1,41 +1,41 @@
-# 🌱 AgroFlow - Smart Agricultural Assistant
+#  AgroFlow - Smart Agricultural Assistant
 
 > **AI-powered farming companion with marketplace integration and real-time collaboration**
 
 [![CI/CD](https://github.com/maritimkibet/agroflow/actions/workflows/main.yml/badge.svg)](https://github.com/maritimkibet/agroflow/actions)
 [![Release](https://github.com/maritimkibet/agroflow/actions/workflows/release.yml/badge.svg)](https://github.com/maritimkibet/agroflow/releases)
 
-## 🚀 Features
+## Features
 
-### 🌾 **Smart Farming Tools**
+###  **Smart Farming Tools**
 - **Task Management**: Offline-first task tracking with calendar integration
 - **AI Assistant**: Local agricultural advice based on weather and location
 - **Calendar View**: Visual task scheduling and deadline tracking
 - **Weather Integration**: Location-aware farming recommendations
 
-### 🛒 **Marketplace**
+###  **Marketplace**
 - **Real-time Listings**: Buy and sell agricultural products
 - **Image Support**: Upload and view product photos
 - **Contact System**: In-app messaging and phone integration
 - **Global Reach**: Worldwide marketplace visibility
 
-### 💬 **Communication**
+###  **Communication**
 - **Real-time Chat**: In-app messaging between buyers and sellers
 - **Online Status**: See when users are active
 - **Product Context**: Chat about specific products
 - **Offline Fallback**: Phone calls when internet is unavailable
 
-### 🔧 **Technical Excellence**
+###  **Technical Excellence**
 - **Hybrid Storage**: Hive (offline) + Firebase (online sync)
 - **Role-based UI**: Different features for farmers, buyers, or both
 - **Auto Updates**: GitHub Releases integration
 - **Offline Support**: Works without internet connection
 
-## 📱 Screenshots
+##  Screenshots
 
 *Coming soon - Add your app screenshots here*
 
-## 🔧 Installation
+##  Installation
 
 ### **For Users**
 1. Download the latest APK from [Releases](https://github.com/maritimkibet/agroflow/releases)
@@ -59,7 +59,7 @@ dart run build_runner build
 flutter run
 ```
 
-## 🏗️ Architecture
+## 🏗 Architecture
 
 ### **Storage Strategy**
 - **Personal Data**: Stored locally with Hive (offline-first)
@@ -73,7 +73,7 @@ flutter run
 - **Hive**: Local NoSQL database for offline support
 - **GitHub Actions**: CI/CD pipeline for automated releases
 
-## 🔄 Update System
+##  Update System
 
 AgroFlow features automatic update notifications:
 - Checks GitHub Releases API for new versions
@@ -81,14 +81,14 @@ AgroFlow features automatic update notifications:
 - Direct download from GitHub releases
 - Preserves user data during updates
 
-## 🌍 Global Ready
+##  Global Ready
 
 - **Multi-language support**: Ready for localization
 - **Location-aware**: GPS-based weather and advice
 - **Offline capable**: Works in remote farming areas
 - **Scalable**: Firebase backend handles growth
 
-## 🚀 Development
+##  Development
 
 ### **Quick Start**
 ```bash
@@ -118,7 +118,7 @@ lib/
 scripts/            # Build and release automation
 ```
 
-## 📋 Roadmap
+##  Roadmap
 
 ### **v1.1.0 - Enhanced AI**
 - [ ] Crop disease detection with camera
@@ -135,7 +135,7 @@ scripts/            # Build and release automation
 - [ ] Knowledge sharing platform
 - [ ] Expert consultation system
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -146,17 +146,17 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Run tests and analysis
 5. Submit a pull request
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **Flutter Team**: For the amazing framework
 - **Firebase**: For reliable backend services
 - **Open Source Community**: For the incredible packages used
 
-## 📞 Support
+##  Support
 
 - **Issues**: [GitHub Issues](https://github.com/maritimkibet/agroflow/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/maritimkibet/agroflow/discussions)
@@ -164,6 +164,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for farmers worldwide** 🌾
+**Made with ❤love for farmers worldwide** 
 
 *AgroFlow - You plant, we maintain.*
