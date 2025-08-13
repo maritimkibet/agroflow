@@ -65,6 +65,9 @@ dev_dependencies:
 
   # Launcher icon generation
   flutter_launcher_icons: ^0.13.1
+  
+  # YAML parsing for setup scripts
+  yaml: ^3.1.2
 
 flutter_launcher_icons:
   android: true

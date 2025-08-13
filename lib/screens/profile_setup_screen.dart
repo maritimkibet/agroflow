@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/user.dart' as app_user;
 import '../services/hybrid_storage_service.dart';
+import '../screens/onboarding_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -52,7 +52,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _currentLocation = '${position.latitude},${position.longitude}';
       });
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
     }
   }
 
@@ -64,11 +64,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
+      // Create user without Firebase Auth dependency
       final user = app_user.User(
-        id: currentUser.uid,
+        id: DateTime.now().millisecondsSinceEpoch.toString(), // Simple ID
         name: _nameController.text.trim(),
         role: _selectedRole,
         location: '${_countyController.text.trim()}, ${_currentLocation ?? 'Unknown'}',
@@ -78,7 +76,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       await _storageService.saveUserProfile(user);
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {

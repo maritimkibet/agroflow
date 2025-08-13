@@ -125,6 +125,23 @@ class HybridStorageService {
     return _hiveService.getCurrentUser();
   }
 
+  /// Get user by ID - For messaging purposes
+  User? getUserById(String userId) {
+    // For now, return a placeholder user since we don't store other users locally
+    // In a real app, this would fetch from Firebase or cache
+    return User(
+      id: userId,
+      name: 'User $userId',
+      role: UserRole.farmer,
+      location: 'Unknown',
+    );
+  }
+
+  /// Get product by ID
+  Product? getProductById(String productId) {
+    return _hiveService.getProductById(productId);
+  }
+
   // ========== SYNC MANAGEMENT ==========
 
   /// Check if device is online

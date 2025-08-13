@@ -15,6 +15,7 @@ import 'add_task_screen.dart';
 import 'calendar_screen.dart';
 import 'marketplace/marketplace_screen.dart';
 import 'marketplace/add_product_screen.dart';
+import 'messaging/conversations_screen.dart';
 import 'settings_screen.dart';
 import 'ai_assistant_screen.dart';
 
@@ -379,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _isLoadingInsights
@@ -559,6 +560,19 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
+          // Messages icon
+          IconButton(
+            icon: const Icon(Icons.message),
+            tooltip: 'Messages',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ConversationsScreen(),
+                ),
+              );
+            },
+          ),
           // Sync status indicator
           FutureBuilder<Map<String, dynamic>>(
             future: _storageService.getSyncStatus(),

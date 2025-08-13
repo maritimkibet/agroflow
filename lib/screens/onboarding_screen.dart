@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/hybrid_storage_service.dart';
 import '../models/crop_task.dart';
+import 'home_screen.dart';
 
 
 class OnboardingScreen extends StatefulWidget {
@@ -444,7 +445,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await prefs.setBool('onboarding_complete', true);
       
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {

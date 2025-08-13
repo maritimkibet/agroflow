@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import '../services/hybrid_storage_service.dart';
 import '../services/weather_service.dart';
-import '../services/ai_analysis_service.dart';
 import '../models/user.dart';
 
 class AiAssistantScreen extends StatefulWidget {
@@ -21,7 +19,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   bool _isLoading = false;
   User? _currentUser;
   Map<String, dynamic>? _weatherData;
-  Position? _currentPosition;
 
   late FlutterTts _flutterTts;
   final HybridStorageService _storageService = HybridStorageService();
@@ -37,64 +34,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Future<void> _initializeUserData() async {
     _currentUser = _storageService.getCurrentUser();
-    await _getCurrentLocation();
     await _getWeatherData();
-  }
-
-  Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
-      }
-      if (permission == LocationPermission.deniedForever) return;
-
-      _currentPosition = await Geolocator.getCurrentPosition();
-    } catch (e) {
-      print('Error getting location: $e');
-    }
   }
 
   Future<void> _getWeatherData() async {
     try {
       _weatherData = await _weatherService.getCurrentWeather();
     } catch (e) {
-      print('Error getting weather: $e');
+      debugPrint('Error getting weather: $e');
     }
   }
 
-  void _addWelcomeMessage() async {
+  void _addWelcomeMessage() {
     final userName = _currentUser?.name ?? 'there';
     final userRole = _currentUser?.role.name ?? 'user';
     
-    // Get AI analysis for contextual welcome
-    final aiAnalysis = AIAnalysisService();
-    final insights = await aiAnalysis.analyzeAppData();
-    
-    String contextualMessage = 'Hello $userName! I\'m AgroFlow AI, your agricultural assistant. ';
-    
-    if (insights.isNotEmpty) {
-      final urgentTasks = insights.where((insight) => 
-        insight.toLowerCase().contains('urgent') || 
-        insight.toLowerCase().contains('overdue') ||
-        insight.toLowerCase().contains('immediate')).toList();
-      
-      if (urgentTasks.isNotEmpty) {
-        contextualMessage += 'I\'ve analyzed your farm data and found some urgent matters that need attention:\n\n';
-        contextualMessage += urgentTasks.take(2).join('\n\n');
-        contextualMessage += '\n\nWhat would you like to address first?';
-      } else {
-        contextualMessage += 'I\'ve analyzed your current farming situation. Here\'s what I recommend today:\n\n';
-        contextualMessage += insights.take(2).join('\n\n');
-        contextualMessage += '\n\nHow can I help you optimize your farming today?';
-      }
-    } else {
-      contextualMessage += 'I can help with farming advice, market insights, and more based on your location and weather. As a $userRole, what would you like to know today?';
-    }
+    String contextualMessage = 'Hello $userName! 🌾 I am AgroFlow AI, your intelligent agricultural assistant powered by Google Gemini. ';
+    contextualMessage += 'I can help with farming advice, weather insights, crop management, pest control, and marketplace guidance. ';
+    contextualMessage += 'As a $userRole, what would you like to know today?';
     
     setState(() {
       _messages.add({
@@ -128,9 +85,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       });
       await _speak(responseText);
     } catch (e) {
-      _showError('Error: ${e.toString()}');
+      debugPrint('AI Error: $e');
       setState(() {
-        _messages.add({'role': 'ai', 'text': 'Sorry, something went wrong.'});
+        _messages.add({'role': 'ai', 'text': 'Sorry, I am having trouble connecting to my AI brain right now. Please try again in a moment!'});
       });
     } finally {
       setState(() {
@@ -140,9 +97,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Future<String> _getGeminiResponse(List<Map<String, String>> messages) async {
-    const apiKey = 'AIzaSyDvUIam0w81CiSBL0BaAuU-PZTJbDsEkvk';
-    const url =
-        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$apiKey';
+    const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8';
+    const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$apiKey';
 
     final systemPrompt = _buildSystemPrompt();
 
@@ -156,8 +112,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         {
           "parts": [
             {
-              "text":
-                  "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}"
+              "text": "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}"
             }
           ]
         }
@@ -173,7 +128,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       final data = jsonDecode(response.body);
       return data['candidates'][0]['content']['parts'][0]['text'].trim();
     } else {
-      throw Exception('Failed to get response: ${response.body}');
+      throw Exception('API Error: ${response.statusCode}');
     }
   }
 
@@ -184,17 +139,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             task.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
         .toList();
 
-    String prompt = '''You are AgroFlow AI, a global agricultural and marketplace assistant. You analyze farming activities, weather patterns, and provide intelligent advice.
+    String prompt = '''You are AgroFlow AI, a global agricultural and marketplace assistant powered by Google Gemini. You provide intelligent, context-aware farming advice.
 
 User Information:
-- Role: ${_currentUser?.role.name ?? 'unknown'}
+- Role: ${_currentUser?.role.name ?? 'farmer'}
 - Name: ${_currentUser?.name ?? 'User'}
 - Location: ${_currentUser?.location ?? 'Unknown location'}''';
 
-    if (_currentPosition != null) {
-      prompt += '''
-- GPS Coordinates: ${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}''';
-    }
     if (_weatherData != null) {
       prompt += '''
 
@@ -204,6 +155,7 @@ Current Weather:
 - Humidity: ${_weatherData!['humidity'] ?? 'N/A'}%
 - Wind Speed: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
     }
+
     if (recentTasks.isNotEmpty) {
       prompt += '''
 
@@ -215,32 +167,64 @@ Recent Farming Activities (Last 30 days):''';
 - ${task.cropName}: ${task.taskDescription} ($status) - $daysAgo days ago''';
       }
     }
+
     prompt += '''
 
-Provide intelligent, context-aware farming advice considering the above data.''';
+Instructions:
+- Provide intelligent, context-aware farming advice
+- Keep responses concise but informative
+- Use emojis to make responses engaging
+- Consider weather and seasonal factors
+- Be encouraging and supportive
+- Focus on practical, actionable advice''';
+    
     return prompt;
   }
 
   Future _speak(String text) async {
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setPitch(1.0);
-    await _flutterTts.speak(text);
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
+    try {
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.speak(text);
+    } catch (e) {
+      debugPrint('TTS Error: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("AgroFlow AI Assistant")),
+      appBar: AppBar(
+        title: const Text("AgroFlow AI Assistant"),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.psychology),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Column(
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: Colors.green.shade100,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.psychology, color: Colors.green.shade700, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Powered by Google Gemini AI',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
@@ -250,8 +234,7 @@ Provide intelligent, context-aware farming advice considering the above data.'''
                   final message = _messages[index];
                   final isUser = message['role'] == 'user';
                   return Align(
-                    alignment:
-                        isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       padding: const EdgeInsets.all(12),
@@ -259,38 +242,50 @@ Provide intelligent, context-aware farming advice considering the above data.'''
                         maxWidth: MediaQuery.of(context).size.width * 0.8,
                       ),
                       decoration: BoxDecoration(
-                        color:
-                            isUser ? Colors.green[300] : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(10),
+                        color: isUser 
+                          ? Colors.green.shade300 
+                          : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(message['text'] ?? ''),
+                      child: Text(
+                        message['text'] ?? '',
+                        style: TextStyle(
+                          color: isUser ? Colors.white : Colors.black87,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   );
                 } else {
-                  // Typing indicator
                   return Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 6, horizontal: 12),
+                      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.green.shade600,
+                              ),
+                            ),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            "AgroFlow AI is typing...",
-                            style:
-                                TextStyle(fontStyle: FontStyle.italic),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "AgroFlow AI is thinking...",
+                            style: TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.black54,
+                            ),
                           ),
                         ],
                       ),
@@ -300,38 +295,38 @@ Provide intelligent, context-aware farming advice considering the above data.'''
               },
             ),
           ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.help_outline),
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          _showError(
-                              '💡 Tip: Ask me about farming, weather, crops, or marketplace advice!');
-                        },
-                  tooltip: 'Get help',
-                ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.send,
-                    onSubmitted: (_) =>
-                        _isLoading ? null : _sendMessage(),
-                    decoration: const InputDecoration(
-                      hintText: "Ask a farming question...",
-                      border: OutlineInputBorder(),
+                    onSubmitted: (_) => _isLoading ? null : _sendMessage(),
+                    decoration: InputDecoration(
+                      hintText: "Ask me anything about farming...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     enabled: !_isLoading,
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _isLoading ? null : _sendMessage,
-                  icon: const Icon(Icons.send),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade600,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: _isLoading ? null : _sendMessage,
+                    icon: const Icon(Icons.send, color: Colors.white),
+                  ),
                 ),
               ],
             ),

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/onboarding_screen.dart';
-import '../auth/login_screen.dart';
 import '../services/hybrid_storage_service.dart';
 
 class AuthWrapper extends StatelessWidget {
@@ -12,44 +10,28 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<firebase_auth.User?>(
-      stream: firebase_auth.FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Check loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+    // Check profile and onboarding status
+    return FutureBuilder<Map<String, bool>>(
+      future: _checkUserStatus(),
+      builder: (context, statusSnapshot) {
+        if (statusSnapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: Colors.green.shade50,
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        // If user is not logged in
-        if (!snapshot.hasData) {
-          return const LoginScreen();
+        final status = statusSnapshot.data ?? {'profile': false, 'onboarding': false};
+        final isProfileComplete = status['profile'] ?? false;
+        final isOnboardingComplete = status['onboarding'] ?? false;
+        
+        if (!isProfileComplete) {
+          return const ProfileSetupScreen();
+        } else if (!isOnboardingComplete) {
+          return const OnboardingScreen();
+        } else {
+          return const HomeScreen();
         }
-
-        // If user is logged in, check profile and onboarding status
-        return FutureBuilder<Map<String, bool>>(
-          future: _checkUserStatus(),
-          builder: (context, statusSnapshot) {
-            if (statusSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            final status = statusSnapshot.data ?? {'profile': false, 'onboarding': false};
-            final isProfileComplete = status['profile'] ?? false;
-            final isOnboardingComplete = status['onboarding'] ?? false;
-            
-            if (!isProfileComplete) {
-              return const ProfileSetupScreen();
-            } else if (!isOnboardingComplete) {
-              return const OnboardingScreen();
-            } else {
-              return const HomeScreen();
-            }
-          },
-        );
       },
     );
   }
