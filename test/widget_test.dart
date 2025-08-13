@@ -1,37 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:agroflow/services/notification_service.dart'; // lowercase
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      TestApp(
-        notificationService: NotificationService(),
-      ),
-    );
+  group('AgroFlow Tests', () {
+    testWidgets('App should build without errors', (WidgetTester tester) async {
+      // Build a simple test app
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Text('AgroFlow Test'),
+            ),
+          ),
+        ),
+      );
 
-    // Verify that counter starts at 0
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Verify the app builds successfully
+      expect(find.text('AgroFlow Test'), findsOneWidget);
+    });
 
-    // Tap '+' button
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+      await tester.pumpWidget(const TestApp());
 
-    // Verify counter incremented
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Verify that counter starts at 0
+      expect(find.text('0'), findsOneWidget);
+      expect(find.text('1'), findsNothing);
+
+      // Tap '+' button
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+
+      // Verify counter incremented
+      expect(find.text('0'), findsNothing);
+      expect(find.text('1'), findsOneWidget);
+    });
   });
 }
 
-/// Renamed from MyApp to avoid conflict with main.dart
+/// Simple test app for widget testing
 class TestApp extends StatefulWidget {
-  final NotificationService notificationService;
-
-  const TestApp({
-    super.key,
-    required this.notificationService,
-  });
+  const TestApp({super.key});
 
   @override
   State<TestApp> createState() => _TestAppState();

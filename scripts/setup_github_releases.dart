@@ -5,18 +5,18 @@ import 'package:yaml/yaml.dart';
 void main() async {
   print('🚀 AgroFlow GitHub Releases Setup');
   print('=====================================\n');
-  
+
   // Read current version from pubspec.yaml
   final pubspecFile = File('pubspec.yaml');
   if (await pubspecFile.exists()) {
     final pubspecContent = await pubspecFile.readAsString();
     final pubspec = loadYaml(pubspecContent);
     final currentVersion = pubspec['version'] as String;
-    
+
     print('📱 Current app version: $currentVersion');
     print('');
   }
-  
+
   print('📋 Setup Instructions:');
   print('======================');
   print('');
@@ -39,10 +39,10 @@ void main() async {
   print('   - Upload your APK file');
   print('   - Add release notes');
   print('');
-  
+
   await _createGitHubWorkflow();
   await _createReleaseTemplate();
-  
+
   print('✅ Setup complete!');
   print('');
   print('🔄 To release updates:');
@@ -56,9 +56,9 @@ void main() async {
 Future<void> _createGitHubWorkflow() async {
   final workflowDir = Directory('.github/workflows');
   await workflowDir.create(recursive: true);
-  
+
   final workflowFile = File('.github/workflows/release.yml');
-  
+
   const workflowContent = '''name: Build and Release APK
 
 on:
@@ -136,7 +136,7 @@ jobs:
 
 Future<void> _createReleaseTemplate() async {
   final templateFile = File('RELEASE_TEMPLATE.md');
-  
+
   const templateContent = '''# AgroFlow Release Template
 
 ## Release Title Format
