@@ -8,8 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UpdateService {
   // GitHub repository info - UPDATE THESE WITH YOUR REPO DETAILS
-  static const String _githubOwner = 'https://github.com/maritimkibet'; // Replace with your GitHub username
-  static const String _githubRepo = 'ahttps://github.com/maritimkibet/agroflow'; // Replace with your repository name
+  static const String _githubOwner = 'maritimkibet'; // Your GitHub username
+  static const String _githubRepo = 'agroflow'; // Your repository name
   static const String _githubApiUrl = 'https://api.github.com/repos/$_githubOwner/$_githubRepo/releases/latest';
   
   static const String _lastUpdateCheckKey = 'last_update_check';
