@@ -7,7 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UpdateService {
-  static const String _updateCheckUrl = 'https://your-server.com/api/app-version'; // Replace with your server
+  // GitHub repository info - UPDATE THESE WITH YOUR REPO DETAILS
+  static const String _githubOwner = 'https://github.com/maritimkibet'; // Replace with your GitHub username
+  static const String _githubRepo = 'ahttps://github.com/maritimkibet/agroflow'; // Replace with your repository name
+  static const String _githubApiUrl = 'https://api.github.com/repos/$_githubOwner/$_githubRepo/releases/latest';
+  
   static const String _lastUpdateCheckKey = 'last_update_check';
   static const String _skipVersionKey = 'skip_version';
   
@@ -20,12 +24,12 @@ class UpdateService {
       final currentVersion = packageInfo.version;
       final currentBuildNumber = int.parse(packageInfo.buildNumber);
 
-      // Check from Firebase first (recommended)
-      final updateInfo = await _checkFirebaseForUpdates(currentVersion, currentBuildNumber);
+      // Check GitHub Releases first (primary)
+      final updateInfo = await _checkGitHubReleases(currentVersion, currentBuildNumber);
       if (updateInfo != null) return updateInfo;
 
-      // Fallback to HTTP API
-      return await _checkHttpForUpdates(currentVersion, currentBuildNumber);
+      // Fallback to Firebase if GitHub fails
+      return await _checkFirebaseForUpdates(currentVersion, currentBuildNumber);
     } catch (e) {
       debugPrint('Update check failed: $e');
       return null;
@@ -66,29 +70,60 @@ class UpdateService {
     }
   }
 
-  /// Check for updates from HTTP API (fallback)
-  Future<UpdateInfo?> _checkHttpForUpdates(String currentVersion, int currentBuildNumber) async {
+  /// Check for updates from GitHub Releases (primary method)
+  Future<UpdateInfo?> _checkGitHubReleases(String currentVersion, int currentBuildNumber) async {
     try {
       final response = await http.get(
-        Uri.parse(_updateCheckUrl),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        Uri.parse(_githubApiUrl),
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'AgroFlow-App',
+        },
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final latestVersion = data['latest_version'] as String;
-        final latestBuildNumber = data['latest_build_number'] as int;
-        final downloadUrl = data['download_url'] as String;
-        final releaseNotes = data['release_notes'] as String? ?? '';
-        final forceUpdate = data['force_update'] as bool? ?? false;
-
+        
+        // Parse GitHub release data
+        final tagName = data['tag_name'] as String; // e.g., "v1.1.0"
+        final releaseName = data['name'] as String? ?? tagName;
+        final releaseBody = data['body'] as String? ?? '';
+        final isDraft = data['draft'] as bool? ?? false;
+        final isPrerelease = data['prerelease'] as bool? ?? false;
+        
+        // Skip draft or prerelease versions
+        if (isDraft || isPrerelease) return null;
+        
+        // Extract version from tag (remove 'v' prefix if present)
+        final latestVersion = tagName.startsWith('v') ? tagName.substring(1) : tagName;
+        
+        // Find APK download URL from assets
+        final assets = data['assets'] as List<dynamic>? ?? [];
+        String? downloadUrl;
+        
+        for (final asset in assets) {
+          final assetName = asset['name'] as String;
+          if (assetName.endsWith('.apk')) {
+            downloadUrl = asset['browser_download_url'] as String;
+            break;
+          }
+        }
+        
+        if (downloadUrl == null) {
+          debugPrint('No APK found in GitHub release assets');
+          return null;
+        }
+        
+        // Parse version to build number for comparison
+        final latestBuildNumber = _versionToBuildNumber(latestVersion);
+        
         if (latestBuildNumber > currentBuildNumber) {
           return UpdateInfo(
             latestVersion: latestVersion,
             currentVersion: currentVersion,
             downloadUrl: downloadUrl,
-            releaseNotes: releaseNotes,
-            isForceUpdate: forceUpdate,
+            releaseNotes: _formatReleaseNotes(releaseName, releaseBody),
+            isForceUpdate: false, // GitHub releases are typically optional
             buildNumber: latestBuildNumber,
           );
         }
@@ -96,9 +131,50 @@ class UpdateService {
       
       return null;
     } catch (e) {
-      debugPrint('HTTP update check failed: $e');
+      debugPrint('GitHub releases check failed: $e');
       return null;
     }
+  }
+
+  /// Convert version string to build number for comparison
+  int _versionToBuildNumber(String version) {
+    try {
+      final parts = version.split('.');
+      if (parts.length >= 3) {
+        final major = int.parse(parts[0]);
+        final minor = int.parse(parts[1]);
+        final patch = int.parse(parts[2]);
+        // Convert to single number: 1.2.3 -> 10203
+        return major * 10000 + minor * 100 + patch;
+      }
+    } catch (e) {
+      debugPrint('Failed to parse version: $version');
+    }
+    return 0;
+  }
+
+  /// Format GitHub release notes for display
+  String _formatReleaseNotes(String releaseName, String releaseBody) {
+    final buffer = StringBuffer();
+    
+    if (releaseName.isNotEmpty) {
+      buffer.writeln('🚀 $releaseName\n');
+    }
+    
+    if (releaseBody.isNotEmpty) {
+      // Clean up markdown formatting for better display
+      String cleanBody = releaseBody
+          .replaceAll('##', '•')
+          .replaceAll('#', '•')
+          .replaceAll('**', '')
+          .replaceAll('*', '•');
+      
+      buffer.write(cleanBody);
+    } else {
+      buffer.write('New version available with improvements and bug fixes.');
+    }
+    
+    return buffer.toString().trim();
   }
 
   /// Check if current version is below minimum supported

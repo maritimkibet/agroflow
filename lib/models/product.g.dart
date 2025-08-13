@@ -28,13 +28,14 @@ class ProductAdapter extends TypeAdapter<Product> {
       createdAt: fields[8] as DateTime?,
       images: (fields[9] as List?)?.cast<String>(),
       isAvailable: fields[10] as bool,
+      contactNumber: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Product obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class ProductAdapter extends TypeAdapter<Product> {
       ..writeByte(9)
       ..write(obj.images)
       ..writeByte(10)
-      ..write(obj.isAvailable);
+      ..write(obj.isAvailable)
+      ..writeByte(11)
+      ..write(obj.contactNumber);
   }
 
   @override

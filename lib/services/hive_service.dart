@@ -74,6 +74,13 @@ class HiveService {
     return productBox.values.toList();
   }
 
+  Product? getProductById(String productId) {
+    return productBox.values.firstWhere(
+      (product) => product.id == productId,
+      orElse: () => Product.empty(),
+    );
+  }
+
   List<Product> getProductsByType(ProductType type) {
     return productBox.values
         .where((product) => product.type == type)

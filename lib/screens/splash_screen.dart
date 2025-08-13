@@ -53,9 +53,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Log startup in background without blocking navigation
     _logStartupInBackground();
     
-    // Continue to auth wrapper after delay
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 1200)); // Show splash for 1.2 seconds
     if (!mounted) return;
+    
+    // Navigate to AuthWrapper which will handle the complete flow
     Navigator.pushReplacementNamed(context, '/auth');
   }
 

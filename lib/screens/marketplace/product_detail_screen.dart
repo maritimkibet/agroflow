@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/product.dart';
 import '../../services/hive_service.dart';
+import '../../services/hybrid_storage_service.dart';
+import '../../services/messaging_service.dart';
+import '../messaging/chat_screen.dart';
 import 'add_product_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -20,13 +24,21 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late Product product;
   late HiveService hiveService;
+  final MessagingService _messagingService = MessagingService();
   bool isDeleting = false;
+  bool _isSellerOnline = false;
 
   @override
   void initState() {
     super.initState();
     product = widget.product;
     hiveService = HiveService();
+    _checkSellerStatus();
+  }
+
+  Future<void> _checkSellerStatus() async {
+    _isSellerOnline = await _messagingService.isUserOnline(product.sellerId);
+    if (mounted) setState(() {});
   }
 
   Future<void> _deleteProduct() async {
@@ -188,7 +200,127 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: _buildContactButtons(),
     );
+  }
+
+  Widget _buildContactButtons() {
+    final currentUser = hiveService.getCurrentUser();
+    final isSeller = currentUser != null && currentUser.id == product.sellerId;
+    
+    // Don't show contact buttons for the seller's own products
+    if (isSeller) return const SizedBox.shrink();
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 1,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Message button (primary - always available)
+          Expanded(
+            flex: 2,
+            child: ElevatedButton.icon(
+              onPressed: _startChat,
+              icon: const Icon(Icons.message),
+              label: Text(_isSellerOnline ? 'Message Seller' : 'Message (Offline)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Call button (secondary - for when seller is offline or backup)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: product.contactNumber != null && product.contactNumber!.isNotEmpty
+                  ? _makePhoneCall
+                  : null,
+              icon: const Icon(Icons.phone),
+              label: const Text('Call'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green.shade700,
+                side: BorderSide(color: Colors.green.shade700),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startChat() async {
+    final currentUser = hiveService.getCurrentUser();
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to start a conversation'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Get seller information
+    final storageService = HybridStorageService();
+    final seller = storageService.getUserById(product.sellerId);
+    if (seller == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Seller information not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to chat screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          product: product,
+          otherUser: seller,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _makePhoneCall() async {
+    if (product.contactNumber == null || product.contactNumber!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No contact number available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final phoneUrl = 'tel:${product.contactNumber}';
+    if (await canLaunchUrl(Uri.parse(phoneUrl))) {
+      await launchUrl(Uri.parse(phoneUrl));
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not make phone call'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildProductImage(BuildContext context) {
@@ -201,7 +333,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           color: Colors.grey.shade200,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -232,7 +364,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 1,
             offset: const Offset(0, 1),
           ),
