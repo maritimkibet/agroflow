@@ -7,9 +7,13 @@ import 'models/crop_task.dart';
 import 'models/user.dart';
 import 'models/product.dart';
 import 'models/crop_data.dart';
+import 'models/automation_response.dart';
 
 import 'services/hive_service.dart';
 import 'services/notification_service.dart';
+import 'services/achievement_service.dart';
+import 'services/referral_service.dart';
+import 'services/growth_analytics_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/profile_setup_screen.dart';
@@ -17,6 +21,14 @@ import 'screens/onboarding_screen.dart';
 import 'auth/login_screen.dart';
 import 'auth/register_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/referral_screen.dart';
+import 'screens/achievements_screen.dart';
+import 'screens/analytics_screen.dart';
+import 'screens/crop_doctor_screen.dart';
+import 'screens/traceability_screen.dart';
+import 'screens/climate_adaptation_screen.dart';
+import 'screens/social_media_hub_screen.dart';
+import 'screens/automation_screen.dart';
 import 'wrappers/auth_wrapper.dart';
 import 'services/platform_service.dart';
 
@@ -36,6 +48,9 @@ void main() async {
   Hive.registerAdapter(ListingTypeAdapter());
   Hive.registerAdapter(CropDataAdapter());
   Hive.registerAdapter(WateringScheduleAdapter());
+  Hive.registerAdapter(AutomationResponseAdapter());
+  Hive.registerAdapter(PricingSuggestionAdapter());
+  Hive.registerAdapter(SmartScheduleSuggestionAdapter());
 
   // Open essential boxes only
   await Future.wait([
@@ -65,11 +80,19 @@ void _initializeBackgroundServices() async {
     // Initialize services in background
     final hiveService = HiveService();
     final notificationService = NotificationService();
+    final achievementService = AchievementService();
+    final referralService = ReferralService();
+    final analyticsService = GrowthAnalyticsService();
     
     await Future.wait([
       hiveService.initializeCropData(),
       notificationService.initialize(),
+      achievementService.initialize(),
+      referralService.initialize(),
     ]);
+    
+    // Track app open for growth analytics
+    await analyticsService.trackAppOpen();
 
     // Schedule notifications after initialization
     await notificationService.scheduleTaskNotifications();
@@ -119,6 +142,14 @@ class MyApp extends StatelessWidget {
         '/profile_setup': (context) => const ProfileSetupScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/home': (context) => const HomeScreen(),
+        '/referral': (context) => const ReferralScreen(),
+        '/achievements': (context) => const AchievementsScreen(),
+        '/analytics': (context) => const AnalyticsScreen(),
+        '/crop_doctor': (context) => const CropDoctorScreen(),
+        '/traceability': (context) => const TraceabilityScreen(),
+        '/climate_adaptation': (context) => const ClimateAdaptationScreen(),
+        '/social_media_hub': (context) => const SocialMediaHubScreen(),
+        '/automation': (context) => const AutomationScreen(),
       },
     );
   }

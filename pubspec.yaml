@@ -1,6 +1,7 @@
 name: agroflow
 description: "AgroFlow - Smart AI-powered farming assistant for global agriculture and marketplace."
 version: 1.0.0+1
+publish_to: none
 
 environment:
   sdk: ">=3.7.0 <4.0.0"
@@ -52,6 +53,15 @@ dependencies:
   # speech_to_text: ^6.6.2  # Temporarily disabled due to build issues
   flutter_tts: ^4.2.3
   url_launcher: ^6.3.2
+  
+  # Growth features
+  share_plus: ^10.0.0
+  
+  # Blockchain and security
+  crypto: ^3.0.3
+  
+  # QR code generation
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

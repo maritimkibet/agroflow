@@ -135,5 +135,18 @@ class HiveService {
 
   void init() {}
 
+  // ========== Generic Data Methods ==========
+  Future<void> saveData(String key, dynamic value) async {
+    await settingsBox.put(key, value);
+  }
+
+  Future<dynamic> getData(String key) async {
+    return settingsBox.get(key);
+  }
+
+  Future<void> removeData(String key) async {
+    await settingsBox.delete(key);
+  }
+
   // Clean up - removed duplicate/placeholder methods
 }

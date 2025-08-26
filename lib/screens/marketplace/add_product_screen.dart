@@ -8,6 +8,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../models/product.dart';
 import '../../services/platform_service.dart';
+import '../../services/achievement_service.dart';
+import '../../services/growth_analytics_service.dart';
+import '../../widgets/achievement_notification.dart';
 import '../onboarding_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -163,6 +166,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
       );
 
       await _firestore.collection('products').doc(product.id).set(product.toMap());
+
+      // Track achievement and analytics
+      if (!isEditing) {
+        final achievementService = AchievementService();
+        final analyticsService = GrowthAnalyticsService();
+        
+        await analyticsService.trackProductListed();
+        final unlockedAchievement = await achievementService.updateProgress('first_product');
+        final marketplaceAchievement = await achievementService.updateProgress('marketplace_seller');
+        
+        if (unlockedAchievement != null && mounted) {
+          AchievementNotification.show(context, unlockedAchievement);
+        } else if (marketplaceAchievement != null && mounted) {
+          AchievementNotification.show(context, marketplaceAchievement);
+        }
+      }
 
       setState(() => _isSaving = false);
 

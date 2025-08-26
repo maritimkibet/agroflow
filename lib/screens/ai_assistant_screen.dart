@@ -4,6 +4,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import '../services/hybrid_storage_service.dart';
 import '../services/weather_service.dart';
+import '../services/achievement_service.dart';
+import '../services/growth_analytics_service.dart';
+import '../widgets/achievement_notification.dart';
 import '../models/user.dart';
 
 class AiAssistantScreen extends StatefulWidget {
@@ -77,6 +80,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       _isLoading = true;
       _controller.clear();
     });
+
+    // Track AI usage for achievements
+    final achievementService = AchievementService();
+    final analyticsService = GrowthAnalyticsService();
+    
+    await analyticsService.trackAIAssistantUsed();
+    final unlockedAchievement = await achievementService.updateProgress('ai_helper');
+    
+    if (unlockedAchievement != null && mounted) {
+      AchievementNotification.show(context, unlockedAchievement);
+    }
 
     try {
       final responseText = await _getGeminiResponse(_messages);

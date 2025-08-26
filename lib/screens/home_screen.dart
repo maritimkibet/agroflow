@@ -9,6 +9,12 @@ import '../services/notification_service.dart';
 import '../services/weather_service.dart';
 import '../services/update_service.dart';
 import '../services/ai_analysis_service.dart';
+// import '../services/achievement_service.dart';
+// import '../services/referral_service.dart';
+// import '../services/growth_analytics_service.dart';
+import '../widgets/growth_dashboard.dart';
+import '../widgets/features_grid.dart';
+import '../widgets/cross_post_suggestions.dart';
 
 
 import 'add_task_screen.dart';
@@ -32,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final WeatherService _weatherService = WeatherService();
   final UpdateService _updateService = UpdateService();
   final AIAnalysisService _aiAnalysisService = AIAnalysisService();
+  // Services for future features
+  // final AchievementService _achievementService = AchievementService();
+  // final ReferralService _referralService = ReferralService();
+  // final GrowthAnalyticsService _analyticsService = GrowthAnalyticsService();
 
   int _selectedIndex = 0;
   User? _currentUser;
@@ -300,6 +310,9 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          const GrowthDashboard(),
+          const CrossPostSuggestions(),
+          const FeaturesGrid(),
           _buildAIInsightsCard(),
           const SizedBox(height: 16),
           _buildWeatherCard(),
@@ -560,6 +573,30 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
+          // Achievements icon
+          IconButton(
+            icon: const Icon(Icons.emoji_events),
+            tooltip: 'Achievements',
+            onPressed: () {
+              Navigator.pushNamed(context, '/achievements');
+            },
+          ),
+          // Analytics icon
+          IconButton(
+            icon: const Icon(Icons.analytics),
+            tooltip: 'Your Stats',
+            onPressed: () {
+              Navigator.pushNamed(context, '/analytics');
+            },
+          ),
+          // Referral icon
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Invite Friends',
+            onPressed: () {
+              Navigator.pushNamed(context, '/referral');
+            },
+          ),
           // Messages icon
           IconButton(
             icon: const Icon(Icons.message),

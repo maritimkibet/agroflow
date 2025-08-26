@@ -34,7 +34,26 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
+            
+            // Additional optimizations for smaller APK
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
+        }
+    }
+
+    // Split APKs by ABI for smaller downloads
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
         }
     }
 
@@ -42,7 +61,12 @@ android {
     applicationVariants.all {
         outputs.all {
             val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl.outputFileName = "AgroFlow.apk"
+            val abi = outputImpl.getFilter(com.android.build.OutputFile.ABI)
+            outputImpl.outputFileName = if (abi != null) {
+                "AgroFlow-${abi}.apk"
+            } else {
+                "AgroFlow.apk"
+            }
         }
     }
 }

@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import '../models/crop_task.dart';
 import '../services/hybrid_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/achievement_service.dart';
+import '../services/growth_analytics_service.dart';
+import '../widgets/achievement_notification.dart';
 import 'onboarding_screen.dart';
 
 class AddTaskScreen extends StatefulWidget {
@@ -160,6 +163,17 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
     await widget.storageService.addOrUpdateTask(newTask);
     await widget.notificationService.scheduleNotificationForTask(newTask);
+
+    // Track achievement and analytics
+    final achievementService = AchievementService();
+    final analyticsService = GrowthAnalyticsService();
+    
+    await analyticsService.trackTaskAdded();
+    final unlockedAchievement = await achievementService.updateProgress('first_task');
+    
+    if (unlockedAchievement != null && mounted) {
+      AchievementNotification.show(context, unlockedAchievement);
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Task saved successfully')),

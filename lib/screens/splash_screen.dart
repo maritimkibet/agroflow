@@ -63,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void _logStartupInBackground() {
     // Run Firebase logging in background without awaiting
     widget.databaseRef.child('splashCheck').set({'status': 'App started'}).catchError((e) {
-      debugPrint('Firebase write failed: $e');
+      // Firebase write failed - handled silently in production
     });
   }
 

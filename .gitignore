@@ -49,4 +49,26 @@ android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 
+# Production configuration files
+android/app/src/main/res/values/strings.xml
+android/key.properties
+android/app/upload-keystore.jks
+ios/Runner/Info.plist
+
+# Environment and API keys
+.env
+.env.local
+.env.production
+*.key
+*.pem
+
+# Build secrets and sensitive configuration
+android/app/build-secrets.properties
+lib/config/secrets.dart
+**/secrets/
+**/keys/
+
+# Debug information (contains sensitive data)
+build/debug-info/
+
 # GitHub Actions will create dummy versions for CI builds
