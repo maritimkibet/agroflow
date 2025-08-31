@@ -15,6 +15,7 @@ import '../services/ai_analysis_service.dart';
 import '../widgets/growth_dashboard.dart';
 import '../widgets/features_grid.dart';
 import '../widgets/cross_post_suggestions.dart';
+import '../widgets/weather_crop_suggestions.dart';
 
 
 import 'add_task_screen.dart';
@@ -316,6 +317,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildAIInsightsCard(),
           const SizedBox(height: 16),
           _buildWeatherCard(),
+          const SizedBox(height: 16),
+          const WeatherCropSuggestions(),
           const SizedBox(height: 16),
           _buildAdvisoryCard(),
         ],

@@ -12,6 +12,7 @@ class ReferralScreen extends StatefulWidget {
 class _ReferralScreenState extends State<ReferralScreen> {
   final ReferralService _referralService = ReferralService();
   final TextEditingController _codeController = TextEditingController();
+  String _selectedLanguage = 'en';
 
   @override
   Widget build(BuildContext context) {
@@ -91,8 +92,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget _buildShareButtons() {
     return Column(
       children: [
+        _buildLanguageSelector(),
+        const SizedBox(height: 16),
         ElevatedButton.icon(
-          onPressed: () => _referralService.shareViaWhatsApp(),
+          onPressed: () => _referralService.shareViaWhatsApp(_selectedLanguage),
           icon: const Icon(Icons.message),
           label: const Text('Share via WhatsApp'),
           style: ElevatedButton.styleFrom(
@@ -103,7 +106,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () => _referralService.shareReferralCode(),
+          onPressed: () => _referralService.shareReferralCode(_selectedLanguage),
           icon: const Icon(Icons.share),
           label: const Text('Share via Other Apps'),
           style: OutlinedButton.styleFrom(
@@ -111,6 +114,44 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLanguageSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Share in Language:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedLanguage,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: _referralService.getSupportedLanguages().map((languageCode) {
+                return DropdownMenuItem(
+                  value: languageCode,
+                  child: Text(_referralService.getLanguageDisplayName(languageCode)),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedLanguage = value;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,57 +1,73 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_setup_screen.dart';
 import '../screens/onboarding_screen.dart';
-import '../services/hybrid_storage_service.dart';
+import '../services/app_state_service.dart';
+import '../services/error_handler_service.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Check profile and onboarding status
-    return FutureBuilder<Map<String, bool>>(
-      future: _checkUserStatus(),
-      builder: (context, statusSnapshot) {
-        if (statusSnapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            backgroundColor: Colors.green.shade50,
-            body: const Center(child: CircularProgressIndicator()),
-          );
+    return FutureBuilder<String>(
+      future: _determineNextRoute(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingScreen();
         }
 
-        final status = statusSnapshot.data ?? {'profile': false, 'onboarding': false};
-        final isProfileComplete = status['profile'] ?? false;
-        final isOnboardingComplete = status['onboarding'] ?? false;
+        final route = snapshot.data ?? '/onboarding';
         
-        if (!isProfileComplete) {
-          return const ProfileSetupScreen();
-        } else if (!isOnboardingComplete) {
-          return const OnboardingScreen();
-        } else {
-          return const HomeScreen();
+        switch (route) {
+          case '/onboarding':
+            return const OnboardingScreen();
+          case '/profile_setup':
+            return const ProfileSetupScreen();
+          case '/home':
+            return const HomeScreen();
+          default:
+            return const OnboardingScreen();
         }
       },
     );
   }
 
-  Future<Map<String, bool>> _checkUserStatus() async {
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: Colors.green.shade50,
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Loading AgroFlow...',
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String> _determineNextRoute() async {
     try {
-      final storageService = HybridStorageService();
-      final user = storageService.getCurrentUser();
-      final isProfileComplete = user != null && user.name.isNotEmpty;
-      
-      final prefs = await SharedPreferences.getInstance();
-      final isOnboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      
-      return {
-        'profile': isProfileComplete,
-        'onboarding': isOnboardingComplete,
-      };
+      final appStateService = AppStateService();
+      return await appStateService.getNextRoute();
     } catch (e) {
-      debugPrint('Status check error: $e');
-      return {'profile': false, 'onboarding': false};
+      debugPrint('Error determining app state: $e');
+      final errorHandler = ErrorHandlerService();
+      // Log error but don't show to user during startup
+      errorHandler.logError('auth_wrapper_error', e.toString());
+      // Default to onboarding on error
+      return '/onboarding';
     }
   }
 }

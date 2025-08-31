@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/automation_response.dart';
 import '../models/product.dart';
 import '../services/automation_service.dart';
+import '../services/error_service.dart';
 import '../services/hybrid_storage_service.dart';
 
 class PricingIntelligenceWidget extends StatefulWidget {
@@ -171,11 +172,13 @@ class _PricingIntelligenceWidgetState extends State<PricingIntelligenceWidget> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting pricing suggestion: $e')),
-      );
+      if (mounted) {
+        ErrorService.handleError(context, e, customMessage: 'Failed to get pricing suggestion');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -187,9 +190,7 @@ class _PricingIntelligenceWidgetState extends State<PricingIntelligenceWidget> {
       
       widget.onPriceUpdated?.call();
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Price updated successfully!')),
-      );
+      ErrorService.showSuccess(context, 'Price updated successfully!');
       
       setState(() => _suggestion = null);
     }
@@ -389,11 +390,13 @@ class _SmartSchedulingWidgetState extends State<SmartSchedulingWidget> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error getting schedule suggestions: $e')),
-      );
+      if (mounted) {
+        ErrorService.handleError(context, e, customMessage: 'Failed to get schedule suggestions');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -401,9 +404,7 @@ class _SmartSchedulingWidgetState extends State<SmartSchedulingWidget> {
     // Apply the schedule change (implement based on your task management)
     widget.onScheduleUpdated?.call();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Schedule updated successfully!')),
-    );
+    ErrorService.showSuccess(context, 'Schedule updated successfully!');
     
     _dismissSuggestion(suggestion);
   }
@@ -510,16 +511,16 @@ class _SocialMediaAutomationWidgetState extends State<SocialMediaAutomationWidge
 
   Future<void> _postToSocialMedia() async {
     if (_contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter some content to post')),
-      );
+      if (mounted) {
+        ErrorService.handleError(context, 'Please enter some content to post');
+      }
       return;
     }
 
     if (_selectedPlatforms.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one platform')),
-      );
+      if (mounted) {
+        ErrorService.handleError(context, 'Please select at least one platform');
+      }
       return;
     }
 
@@ -536,22 +537,24 @@ class _SocialMediaAutomationWidgetState extends State<SocialMediaAutomationWidge
       final response = await _automationService.requestSocialMediaPosting(content);
       
       if (response != null && response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Content posted successfully to social media!')),
-        );
-        _contentController.clear();
+        if (mounted) {
+          ErrorService.showSuccess(context, 'Content posted successfully to social media!');
+          _contentController.clear();
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Content queued for posting!')),
-        );
-        _contentController.clear();
+        if (mounted) {
+          ErrorService.showInfo(context, 'Content queued for posting!');
+          _contentController.clear();
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error posting to social media: $e')),
-      );
+      if (mounted) {
+        ErrorService.handleError(context, e, customMessage: 'Failed to post to social media');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

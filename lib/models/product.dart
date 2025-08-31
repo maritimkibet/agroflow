@@ -42,6 +42,40 @@ class Product extends HiveObject {
   @HiveField(11)
   String? contactNumber;
 
+  // Admin fields
+  @HiveField(12)
+  String? imageUrl;
+
+  @HiveField(13)
+  bool isFlagged;
+
+  @HiveField(14)
+  DateTime? flaggedAt;
+
+  @HiveField(15)
+  bool isApproved;
+
+  @HiveField(16)
+  DateTime? moderatedAt;
+
+  @HiveField(17)
+  String? moderationReason;
+
+  @HiveField(18)
+  String? moderatedBy;
+
+  @HiveField(19)
+  String category;
+
+  @HiveField(20)
+  Map<String, dynamic>? metadata;
+
+  @HiveField(21)
+  List<String> tags;
+
+  @HiveField(22)
+  String userName;
+
   Product({
     String? id,
     required this.name,
@@ -55,6 +89,17 @@ class Product extends HiveObject {
     this.images,
     this.isAvailable = true,
     this.contactNumber,
+    this.imageUrl,
+    this.isFlagged = false,
+    this.flaggedAt,
+    this.isApproved = true,
+    this.moderatedAt,
+    this.moderationReason,
+    this.moderatedBy,
+    required this.category,
+    this.metadata,
+    required this.tags,
+    required this.userName,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now();
 
@@ -72,6 +117,17 @@ class Product extends HiveObject {
         'images': images ?? [],
         'isAvailable': isAvailable,
         'contactNumber': contactNumber,
+        'imageUrl': imageUrl,
+        'isFlagged': isFlagged,
+        'flaggedAt': flaggedAt?.toIso8601String(),
+        'isApproved': isApproved,
+        'moderatedAt': moderatedAt?.toIso8601String(),
+        'moderationReason': moderationReason,
+        'moderatedBy': moderatedBy,
+        'category': category,
+        'metadata': metadata,
+        'tags': tags,
+        'userName': userName,
       };
 
   /// Firestore deserialization
@@ -91,7 +147,18 @@ class Product extends HiveObject {
             : DateTime.now(),
         images: data['images'] != null ? List<String>.from(data['images']) : [],
         isAvailable: data['isAvailable'] ?? true,
-        contactNumber: data['contactNumber'], // <-- new field here
+        contactNumber: data['contactNumber'],
+        imageUrl: data['imageUrl'],
+        isFlagged: data['isFlagged'] ?? false,
+        flaggedAt: data['flaggedAt'] != null ? DateTime.tryParse(data['flaggedAt']) : null,
+        isApproved: data['isApproved'] ?? true,
+        moderatedAt: data['moderatedAt'] != null ? DateTime.tryParse(data['moderatedAt']) : null,
+        moderationReason: data['moderationReason'],
+        moderatedBy: data['moderatedBy'],
+        category: data['category'] ?? 'Other',
+        metadata: data['metadata'] != null ? Map<String, dynamic>.from(data['metadata']) : null,
+        tags: data['tags'] != null ? List<String>.from(data['tags']) : [],
+        userName: data['userName'] ?? '',
       );
 
   static Product empty() => Product(
@@ -107,6 +174,9 @@ class Product extends HiveObject {
         images: [],
         isAvailable: false,
         contactNumber: null,
+        category: 'Other',
+        tags: [],
+        userName: '',
       );
 }
 

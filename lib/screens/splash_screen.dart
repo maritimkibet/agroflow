@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/hive_service.dart';
+import '../services/app_state_service.dart';
+import '../services/error_handler_service.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +20,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   final HiveService _hiveService = HiveService();
+  final AppStateService _appStateService = AppStateService();
+  final ErrorHandlerService _errorHandler = ErrorHandlerService();
 
   @override
   void initState() {
@@ -36,28 +40,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _startAnimationAndNavigate() async {
-    // Start animation and navigation concurrently
-    final animationFuture = _animationController.forward();
-    final navigationFuture = _prepareAndNavigate();
-    
-    // Wait for both to complete, but ensure minimum 1 second total
-    await Future.wait([
-      animationFuture,
-      Future.delayed(const Duration(seconds: 1)), // Exactly 1 second total
-    ]);
-    
-    await navigationFuture;
-  }
-
-  Future<void> _prepareAndNavigate() async {
-    // Log startup in background without blocking navigation
-    _logStartupInBackground();
-    
-    await Future.delayed(const Duration(milliseconds: 1200)); // Show splash for 1.2 seconds
-    if (!mounted) return;
-    
-    // Navigate to AuthWrapper which will handle the complete flow
-    Navigator.pushReplacementNamed(context, '/auth');
+    try {
+      // Start animation immediately
+      _animationController.forward();
+      
+      // Log startup in background without blocking
+      _logStartupInBackground();
+      
+      // Determine next route while animation plays
+      final nextRoute = await _appStateService.getNextRoute();
+      
+      // Ensure minimum splash time of 2 seconds for better UX
+      await Future.delayed(const Duration(milliseconds: 2000));
+      
+      if (!mounted) return;
+      
+      // Navigate to determined route
+      Navigator.pushReplacementNamed(context, nextRoute);
+    } catch (e) {
+      if (mounted) {
+        _errorHandler.handleError(context, e, 'splash_navigation');
+        // Fallback to onboarding on error
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      }
+    }
   }
 
   void _logStartupInBackground() {

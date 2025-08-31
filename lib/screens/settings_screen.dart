@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
+  final HybridStorageService _storageService = HybridStorageService();
 
   User? _currentUser;
   // ignore: unused_field
@@ -30,9 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final UpdateService _updateService = UpdateService();
   
   bool _checkingForUpdates = false;
+  
+  // Secret admin access
+  int _adminTapCount = 0;
+  DateTime? _lastAdminTap;
 
   final TextEditingController _currentPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
@@ -46,8 +52,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _currentUser = _auth.currentUser;
-    _fetchUserData();
+    _initializeUser();
+  }
+
+  void _initializeUser() {
+    try {
+      // Try Firebase first
+      _currentUser = _auth.currentUser;
+      if (_currentUser != null) {
+        _fetchUserData();
+      } else {
+        // Fallback to local storage
+        final localUser = _storageService.getCurrentUser();
+        if (localUser != null) {
+          _nameController.text = localUser.name;
+          _emailController.text = localUser.email ?? '';
+          _phoneController.text = localUser.phone ?? '';
+        } else {
+          // Create demo user for testing
+          _nameController.text = 'Demo User';
+          _emailController.text = 'demo@agroflow.com';
+          _phoneController.text = '+254712345678';
+        }
+      }
+    } catch (e) {
+      debugPrint('Error initializing user: $e');
+      // Fallback to demo data
+      _nameController.text = 'Demo User';
+      _emailController.text = 'demo@agroflow.com';
+      _phoneController.text = '+254712345678';
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -63,6 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _userDoc = doc;
         _nameController.text = data['displayName'] ?? '';
         _emailController.text = _currentUser!.email ?? '';
+        _phoneController.text = data['phone'] ?? '';
         _photoUrl = data['photoUrl'] ?? '';
       });
     } catch (e) {
@@ -182,6 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _firestore.collection('users').doc(_currentUser!.uid).update({
         'displayName': newName,
         'photoUrl': updatedPhotoUrl,
+        'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
       });
 
       // Update email if changed
@@ -517,6 +553,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _handleAdminTap() {
+    final now = DateTime.now();
+    
+    // Reset counter if more than 3 seconds between taps
+    if (_lastAdminTap != null && now.difference(_lastAdminTap!).inSeconds > 3) {
+      _adminTapCount = 0;
+    }
+    
+    _adminTapCount++;
+    _lastAdminTap = now;
+    
+    if (_adminTapCount == 7) {
+      _showAdminAccessDialog();
+      _adminTapCount = 0; // Reset counter
+    } else if (_adminTapCount >= 4) {
+      // Give hint after 4 taps
+      _showSnackBar('Keep tapping... (${7 - _adminTapCount} more)');
+    }
+  }
+
+  void _showAdminAccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Admin Access'),
+          ],
+        ),
+        content: const Text(
+          'You have discovered the secret admin access!\n\n'
+          'This will take you to the administrative dashboard where you can manage users, content, and system settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/admin_login');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Access Admin'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _checkForUpdatesManually() async {
     setState(() {
       _checkingForUpdates = true;
@@ -764,6 +856,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmNewPasswordController.dispose();
@@ -780,10 +873,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text('Settings'),
         backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
       ),
-      body: _currentUser == null
-          ? const Center(child: Text('No user logged in'))
-          : GestureDetector(
+      body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -831,7 +923,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       enabled: !_isLoading,
                     ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        border: OutlineInputBorder(),
+                        hintText: 'e.g., +254712345678',
+                      ),
+                      enabled: !_isLoading,
+                    ),
                     const SizedBox(height: 30),
+
+                    // App Version Section (for admin access)
+                    Card(
+                      elevation: 2,
+                      child: ListTile(
+                        leading: const Icon(Icons.info_outline, color: Colors.blue),
+                        title: const Text('App Information'),
+                        subtitle: GestureDetector(
+                          onTap: _handleAdminTap,
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('AgroFlow v1.0.0'),
+                              Text('Tap 7 times for admin access', 
+                                style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Legal Section
+                    Card(
+                      elevation: 2,
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.description, color: Colors.green),
+                            title: const Text('Terms & Conditions'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.pushNamed(context, '/terms_conditions');
+                            },
+                          ),
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: const Icon(Icons.privacy_tip, color: Colors.blue),
+                            title: const Text('Privacy Policy'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.pushNamed(context, '/privacy_policy');
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     const Align(
                       alignment: Alignment.centerLeft,
@@ -898,20 +1050,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         'App Version',
                                         style: TextStyle(fontWeight: FontWeight.w500),
                                       ),
-                                      FutureBuilder<PackageInfo>(
-                                        future: PackageInfo.fromPlatform(),
-                                        builder: (context, snapshot) {
-                                          if (snapshot.hasData) {
+                                      GestureDetector(
+                                        onTap: _handleAdminTap,
+                                        child: FutureBuilder<PackageInfo>(
+                                          future: PackageInfo.fromPlatform(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.hasData) {
+                                              return Text(
+                                                'Version ${snapshot.data!.version} (${snapshot.data!.buildNumber})',
+                                                style: TextStyle(color: Colors.grey.shade600),
+                                              );
+                                            }
                                             return Text(
-                                              'Version ${snapshot.data!.version} (${snapshot.data!.buildNumber})',
+                                              'Loading...',
                                               style: TextStyle(color: Colors.grey.shade600),
                                             );
-                                          }
-                                          return Text(
-                                            'Loading...',
-                                            style: TextStyle(color: Colors.grey.shade600),
-                                          );
-                                        },
+                                          },
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1153,6 +1308,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    
+                    // Legal Section
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Legal & Privacy',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.description, color: Colors.grey),
+                            label: const Text('Terms & Conditions'),
+                            onPressed: _isLoading ? null : () {
+                              Navigator.pushNamed(context, '/terms_conditions');
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey.shade700,
+                              side: BorderSide(color: Colors.grey.shade400),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.privacy_tip, color: Colors.grey),
+                            label: const Text('Privacy Policy'),
+                            onPressed: _isLoading ? null : () {
+                              Navigator.pushNamed(context, '/privacy_policy');
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey.shade700,
+                              side: BorderSide(color: Colors.grey.shade400),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Admin Access Section
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.admin_panel_settings, color: Colors.blue),
+                        label: const Text('Admin Access'),
+                        onPressed: _isLoading ? null : () {
+                          Navigator.pushNamed(context, '/admin_login');
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(

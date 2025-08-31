@@ -53,7 +53,19 @@ class CropTask extends HiveObject {
         'imagePath': imagePath,
         'priority': priority,
         'notes': notes,
-        'taskType': taskType,  // <-- serialize new field
+        'taskType': taskType,
+      };
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'cropName': cropName,
+        'taskDescription': taskDescription,
+        'date': date.toIso8601String(),
+        'isCompleted': isCompleted,
+        'imagePath': imagePath,
+        'priority': priority,
+        'notes': notes,
+        'taskType': taskType,
       };
 
   factory CropTask.fromJson(Map<String, dynamic> json) {
@@ -66,7 +78,28 @@ class CropTask extends HiveObject {
       imagePath: json['imagePath'],
       priority: json['priority'],
       notes: json['notes'],
-      taskType: json['taskType'],  // <-- deserialize new field
+      taskType: json['taskType'],
     );
   }
+
+  factory CropTask.fromMap(Map<String, dynamic> map, {String? id}) {
+    return CropTask(
+      id: id ?? map['id'],
+      cropName: map['cropName'] ?? '',
+      taskDescription: map['taskDescription'] ?? '',
+      date: DateTime.tryParse(map['date'] ?? '') ?? DateTime.now(),
+      isCompleted: map['isCompleted'] ?? false,
+      imagePath: map['imagePath'],
+      priority: map['priority'],
+      notes: map['notes'],
+      taskType: map['taskType'],
+    );
+  }
+
+  // Additional properties for automation
+  String get title => taskDescription;
+  String get description => notes ?? '';
+  DateTime get dueDate => date;
+  String get category => taskType ?? 'Other';
+  String get cropType => cropName;
 }

@@ -8,12 +8,14 @@ import 'models/user.dart';
 import 'models/product.dart';
 import 'models/crop_data.dart';
 import 'models/automation_response.dart';
+import 'models/admin_user.dart';
 
 import 'services/hive_service.dart';
 import 'services/notification_service.dart';
 import 'services/achievement_service.dart';
 import 'services/referral_service.dart';
 import 'services/growth_analytics_service.dart';
+import 'services/error_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/profile_setup_screen.dart';
@@ -29,17 +31,65 @@ import 'screens/traceability_screen.dart';
 import 'screens/climate_adaptation_screen.dart';
 import 'screens/social_media_hub_screen.dart';
 import 'screens/automation_screen.dart';
+import 'screens/admin/admin_login_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/marketplace/add_product_screen.dart';
+import 'screens/legal/terms_conditions_screen.dart';
+import 'screens/legal/privacy_policy_screen.dart';
 import 'wrappers/auth_wrapper.dart';
 import 'services/platform_service.dart';
+import 'services/admin_setup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize critical services only
-  await Firebase.initializeApp();
-  await Hive.initFlutter();
+  try {
+    // Initialize error handling first
+    ErrorService.initialize();
 
-  // Register adapters (fast operation)
+    // Initialize critical services only
+    await Firebase.initializeApp();
+    await Hive.initFlutter();
+
+    // Register adapters (fast operation)
+    _registerHiveAdapters();
+
+    // Open essential boxes only for startup
+    await _openEssentialBoxes();
+
+    final databaseRef = FirebaseDatabase.instance.ref();
+
+    runApp(
+      MyApp(databaseRef: databaseRef),
+    );
+
+    // Initialize remaining services in background after app starts
+    _initializeBackgroundServices();
+  } catch (e) {
+    debugPrint('App initialization error: $e');
+    // Still run the app with minimal functionality
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text('App initialization failed'),
+                const SizedBox(height: 8),
+                Text('Error: $e'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _registerHiveAdapters() {
   Hive.registerAdapter(CropTaskAdapter());
   Hive.registerAdapter(UserAdapter());
   Hive.registerAdapter(UserRoleAdapter());
@@ -51,39 +101,62 @@ void main() async {
   Hive.registerAdapter(AutomationResponseAdapter());
   Hive.registerAdapter(PricingSuggestionAdapter());
   Hive.registerAdapter(SmartScheduleSuggestionAdapter());
+  Hive.registerAdapter(AdminRoleAdapter());
+  Hive.registerAdapter(AdminUserAdapter());
+  Hive.registerAdapter(SupportTicketAdapter());
+  Hive.registerAdapter(TicketPriorityAdapter());
+  Hive.registerAdapter(TicketStatusAdapter());
+  Hive.registerAdapter(UserActivityAdapter());
+}
 
-  // Open essential boxes only
-  await Future.wait([
-    Hive.openBox<User>(HiveService.userBoxName),
-    Hive.openBox(HiveService.settingsBoxName),
-  ]);
-
-  final databaseRef = FirebaseDatabase.instance.ref();
-
-  runApp(
-    MyApp(databaseRef: databaseRef),
-  );
-
-  // Initialize remaining services in background after app starts
-  _initializeBackgroundServices();
+Future<void> _openEssentialBoxes() async {
+  try {
+    await Future.wait([
+      Hive.openBox<User>(HiveService.userBoxName),
+      Hive.openBox(HiveService.settingsBoxName),
+    ]);
+  } catch (e) {
+    debugPrint('Error opening essential boxes: $e');
+    // Continue without local storage if needed
+  }
 }
 
 void _initializeBackgroundServices() async {
   try {
     // Open remaining boxes
+    await _openRemainingBoxes();
+
+    // Initialize services in background
+    await _initializeServices();
+    
+    debugPrint('Background services initialized successfully');
+  } catch (e) {
+    debugPrint('Background initialization error: $e');
+    // App continues to work without background services
+  }
+}
+
+Future<void> _openRemainingBoxes() async {
+  try {
     await Future.wait([
       Hive.openBox<CropTask>(HiveService.taskBoxName),
       Hive.openBox<Product>(HiveService.productBoxName),
       Hive.openBox<CropData>(HiveService.cropDataBoxName),
     ]);
+  } catch (e) {
+    debugPrint('Error opening remaining boxes: $e');
+  }
+}
 
-    // Initialize services in background
+Future<void> _initializeServices() async {
+  try {
     final hiveService = HiveService();
     final notificationService = NotificationService();
     final achievementService = AchievementService();
     final referralService = ReferralService();
     final analyticsService = GrowthAnalyticsService();
     
+    // Initialize core services
     await Future.wait([
       hiveService.initializeCropData(),
       notificationService.initialize(),
@@ -93,17 +166,31 @@ void _initializeBackgroundServices() async {
     
     // Track app open for growth analytics
     await analyticsService.trackAppOpen();
+    
+    // Initialize admin accounts (critical for production)
+    final adminSetupService = AdminSetupService();
+    await adminSetupService.initializeDefaultAdmins();
 
     // Schedule notifications after initialization
     await notificationService.scheduleTaskNotifications();
 
-    // Save existing tasks (if any)
-    final taskBox = Hive.box<CropTask>(HiveService.taskBoxName);
-    for (var task in taskBox.values) {
-      task.save(); // Remove await to make it non-blocking
+    // Save existing tasks (if any) - non-blocking
+    _saveExistingTasks();
+  } catch (e) {
+    debugPrint('Error initializing services: $e');
+  }
+}
+
+void _saveExistingTasks() {
+  try {
+    if (Hive.isBoxOpen(HiveService.taskBoxName)) {
+      final taskBox = Hive.box<CropTask>(HiveService.taskBoxName);
+      for (var task in taskBox.values) {
+        task.save(); // Non-blocking save
+      }
     }
   } catch (e) {
-    debugPrint('Background initialization error: $e');
+    debugPrint('Error saving existing tasks: $e');
   }
 }
 
@@ -134,22 +221,95 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.green.shade50, // Prevent dark screen
       ),
       initialRoute: '/',
-      routes: {
-        '/': (context) => SplashScreen(databaseRef: databaseRef),
-        '/auth': (context) => const AuthWrapper(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/profile_setup': (context) => const ProfileSetupScreen(),
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/referral': (context) => const ReferralScreen(),
-        '/achievements': (context) => const AchievementsScreen(),
-        '/analytics': (context) => const AnalyticsScreen(),
-        '/crop_doctor': (context) => const CropDoctorScreen(),
-        '/traceability': (context) => const TraceabilityScreen(),
-        '/climate_adaptation': (context) => const ClimateAdaptationScreen(),
-        '/social_media_hub': (context) => const SocialMediaHubScreen(),
-        '/automation': (context) => const AutomationScreen(),
+      onGenerateRoute: (settings) {
+        // Handle all routes through a single generator for better control
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(
+              builder: (context) => SplashScreen(databaseRef: databaseRef),
+            );
+          case '/auth':
+            return MaterialPageRoute(
+              builder: (context) => const AuthWrapper(),
+            );
+          case '/login':
+            return MaterialPageRoute(
+              builder: (context) => const LoginScreen(),
+            );
+          case '/register':
+            return MaterialPageRoute(
+              builder: (context) => const RegisterScreen(),
+            );
+          case '/profile_setup':
+            return MaterialPageRoute(
+              builder: (context) => const ProfileSetupScreen(),
+            );
+          case '/onboarding':
+            return MaterialPageRoute(
+              builder: (context) => const OnboardingScreen(),
+            );
+          case '/home':
+            return MaterialPageRoute(
+              builder: (context) => const HomeScreen(),
+            );
+          case '/referral':
+            return MaterialPageRoute(
+              builder: (context) => const ReferralScreen(),
+            );
+          case '/achievements':
+            return MaterialPageRoute(
+              builder: (context) => const AchievementsScreen(),
+            );
+          case '/analytics':
+            return MaterialPageRoute(
+              builder: (context) => const AnalyticsScreen(),
+            );
+          case '/crop_doctor':
+            return MaterialPageRoute(
+              builder: (context) => const CropDoctorScreen(),
+            );
+          case '/traceability':
+            return MaterialPageRoute(
+              builder: (context) => const TraceabilityScreen(),
+            );
+          case '/climate_adaptation':
+            return MaterialPageRoute(
+              builder: (context) => const ClimateAdaptationScreen(),
+            );
+          case '/social_media_hub':
+            return MaterialPageRoute(
+              builder: (context) => const SocialMediaHubScreen(),
+            );
+          case '/automation':
+            return MaterialPageRoute(
+              builder: (context) => const AutomationScreen(),
+            );
+          case '/admin_login':
+            return MaterialPageRoute(
+              builder: (context) => const AdminLoginScreen(),
+            );
+          case '/admin_dashboard':
+            return MaterialPageRoute(
+              builder: (context) => const AdminDashboardScreen(),
+            );
+          case '/add_product':
+            return MaterialPageRoute(
+              builder: (context) => const AddProductScreen(),
+            );
+          case '/terms_conditions':
+            return MaterialPageRoute(
+              builder: (context) => const TermsConditionsScreen(),
+            );
+          case '/privacy_policy':
+            return MaterialPageRoute(
+              builder: (context) => const PrivacyPolicyScreen(),
+            );
+          default:
+            // Fallback to home for unknown routes
+            return MaterialPageRoute(
+              builder: (context) => const HomeScreen(),
+            );
+        }
       },
     );
   }

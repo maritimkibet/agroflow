@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/hybrid_storage_service.dart';
+import '../services/app_state_service.dart';
+import '../services/error_handler_service.dart';
 import '../models/crop_task.dart';
-import 'home_screen.dart';
 
 
 class OnboardingScreen extends StatefulWidget {
@@ -15,6 +15,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   final HybridStorageService _storageService = HybridStorageService();
+  final AppStateService _appStateService = AppStateService();
+  final ErrorHandlerService _errorHandler = ErrorHandlerService();
   
   int _currentPage = 0;
   final List<String> _selectedCrops = [];
@@ -441,23 +443,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
       
       // Mark onboarding as complete
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('onboarding_complete', true);
+      await _appStateService.completeOnboarding();
       
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
+        Navigator.pushReplacementNamed(context, '/profile_setup');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error completing setup: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _errorHandler.handleError(context, e, 'onboarding_completion');
       }
     }
   }

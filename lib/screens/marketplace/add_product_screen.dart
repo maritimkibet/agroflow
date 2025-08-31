@@ -162,7 +162,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         images: allImageUrls,
         type: _selectedType ?? ProductType.other,
         listingType: _selectedListingType ?? ListingType.sell,
-        contactNumber: contactNumber.isNotEmpty ? contactNumber : null, // Save contact number
+        contactNumber: contactNumber.isNotEmpty ? contactNumber : null,
+        category: _selectedType?.toString().split('.').last ?? 'Other',
+        tags: [], // Empty tags for now
+        userName: currentUser.displayName ?? 'Unknown User',
       );
 
       await _firestore.collection('products').doc(product.id).set(product.toMap());

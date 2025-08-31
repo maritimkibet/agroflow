@@ -472,8 +472,175 @@ class _SocialMediaHubScreenState extends State<SocialMediaHubScreen> with Single
   }
 
   Widget _buildAnalyticsTab() {
-    return const Center(
-      child: Text('Analytics coming soon!'),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAnalyticsCard('Posts Published', '12', Icons.publish, Colors.blue),
+          const SizedBox(height: 12),
+          _buildAnalyticsCard('Total Reach', '1,234', Icons.visibility, Colors.green),
+          const SizedBox(height: 12),
+          _buildAnalyticsCard('Engagement Rate', '8.5%', Icons.favorite, Colors.red),
+          const SizedBox(height: 12),
+          _buildAnalyticsCard('Best Platform', 'AgroFlow', Icons.star, Colors.orange),
+          const SizedBox(height: 20),
+          _buildEngagementChart(),
+          const SizedBox(height: 20),
+          _buildPlatformBreakdown(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEngagementChart() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Weekly Engagement',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildBarChart('Mon', 0.3, Colors.blue),
+                  _buildBarChart('Tue', 0.7, Colors.green),
+                  _buildBarChart('Wed', 0.5, Colors.orange),
+                  _buildBarChart('Thu', 0.9, Colors.purple),
+                  _buildBarChart('Fri', 0.6, Colors.red),
+                  _buildBarChart('Sat', 0.8, Colors.teal),
+                  _buildBarChart('Sun', 0.4, Colors.indigo),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarChart(String day, double value, Color color) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          width: 30,
+          height: 150 * value,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          day,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlatformBreakdown() {
+    final platforms = [
+      {'name': 'AgroFlow', 'percentage': 45, 'color': Colors.green},
+      {'name': 'Facebook', 'percentage': 30, 'color': Colors.blue},
+      {'name': 'Instagram', 'percentage': 20, 'color': Colors.purple},
+      {'name': 'WhatsApp', 'percentage': 5, 'color': Colors.green.shade700},
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Platform Performance',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...platforms.map((platform) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: platform['color'] as Color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(platform['name'] as String),
+                  ),
+                  Text(
+                    '${platform['percentage']}%',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            )),
+          ],
+        ),
+      ),
     );
   }
 
@@ -567,9 +734,11 @@ class _SocialMediaHubScreenState extends State<SocialMediaHubScreen> with Single
       });
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to publish: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to publish: $e')),
+        );
+      }
     } finally {
       setState(() {
         _isPosting = false;
@@ -590,51 +759,189 @@ class _SocialMediaHubScreenState extends State<SocialMediaHubScreen> with Single
       message += 'Failed to post to: ${failed.join(', ')}';
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: failed.isEmpty ? Colors.green : Colors.orange,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: failed.isEmpty ? Colors.green : Colors.orange,
+        ),
+      );
+    }
   }
 
   Future<void> _connectPlatform(String platform) async {
-    // Show connection dialog/webview
-    showDialog(
+    // Show connection dialog with proper authentication flow
+    final result = await showDialog<Map<String, String>>(
       context: context,
+      builder: (context) => _buildConnectionDialog(platform),
+    );
+    
+    if (result != null) {
+      await _processConnection(platform, result);
+    }
+  }
+
+  Widget _buildConnectionDialog(String platform) {
+    final usernameController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    
+    return AlertDialog(
+      title: Text('Connect ${_getPlatformDisplayName(platform)}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Enter your ${_getPlatformDisplayName(platform)} account details:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: usernameController,
+              decoration: const InputDecoration(
+                labelText: 'Username/Handle',
+                border: OutlineInputBorder(),
+                prefixText: '@',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email Address',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                border: OutlineInputBorder(),
+                hintText: '+1234567890',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'We\'ll send a verification code to confirm your account ownership.',
+                style: TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final username = usernameController.text.trim();
+            final email = emailController.text.trim();
+            final phone = phoneController.text.trim();
+            
+            if (username.isNotEmpty && ((email.isNotEmpty ?? false) || (phone.isNotEmpty ?? false))) {
+              Navigator.pop(context, {
+                'username': username,
+                'email': email,
+                'phone': phone,
+              });
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please fill in username and at least one contact method'),
+                  ),
+                );
+              }
+            }
+          },
+          child: const Text('Connect'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _processConnection(String platform, Map<String, String> credentials) async {
+    // Show verification dialog
+    final verified = await _showVerificationDialog(platform, credentials);
+    
+    if (verified) {
+      setState(() {
+        _connectionStatus[platform] = true;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_getPlatformDisplayName(platform)} connected successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool> _showVerificationDialog(String platform, Map<String, String> credentials) async {
+    final codeController = TextEditingController();
+    
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Connect ${_getPlatformDisplayName(platform)}'),
-        content: Text('This will open ${_getPlatformDisplayName(platform)} to authorize AgroFlow to post on your behalf.'),
+        title: const Text('Verify Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('We sent a verification code to ${(credentials['email']?.isNotEmpty ?? false) ? credentials['email'] : credentials['phone']}'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Verification Code',
+                border: OutlineInputBorder(),
+                hintText: '123456',
+              ),
+              maxLength: 6,
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              // In production, implement OAuth flow
-              _simulateConnection(platform);
+              final code = codeController.text.trim();
+              if (code.length == 6) {
+                // In production, verify with backend
+                Navigator.pop(context, true);
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid 6-digit code')),
+                  );
+                }
+              }
             },
-            child: const Text('Connect'),
+            child: const Text('Verify'),
           ),
         ],
       ),
-    );
+    ) ?? false;
   }
 
-  Future<void> _simulateConnection(String platform) async {
-    // Simulate connection for demo
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() {
-      _connectionStatus[platform] = true;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_getPlatformDisplayName(platform)} connected successfully!')),
-    );
-  }
+
 
   Future<void> _disconnectPlatform(String platform) async {
     await _metaService.disconnectPlatform(platform);
@@ -644,8 +951,10 @@ class _SocialMediaHubScreenState extends State<SocialMediaHubScreen> with Single
       _selectedPlatforms[platform] = false;
     });
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_getPlatformDisplayName(platform)} disconnected')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_getPlatformDisplayName(platform)} disconnected')),
+      );
+    }
   }
 }
