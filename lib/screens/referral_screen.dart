@@ -74,9 +74,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   IconButton(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: _referralService.referralCode));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Code copied to clipboard!')),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Code copied to clipboard!')),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.copy),
                   ),
@@ -130,7 +132,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedLanguage,
+              initialValue: _selectedLanguage,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -271,21 +273,23 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
     final success = await _referralService.processReferralCode(code);
     
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Referral code applied successfully! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _codeController.clear();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid or already used referral code'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Referral code applied successfully! 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _codeController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid or already used referral code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

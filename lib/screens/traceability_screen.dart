@@ -96,7 +96,7 @@ class _TraceabilityScreenState extends State<TraceabilityScreen> with SingleTick
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _selectedProductId,
+              initialValue: _selectedProductId,
               decoration: const InputDecoration(
                 labelText: 'Product',
                 border: OutlineInputBorder(),

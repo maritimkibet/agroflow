@@ -32,7 +32,7 @@ class _ReferralOnboardingState extends State<ReferralOnboarding> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -181,22 +181,24 @@ class _ReferralOnboardingState extends State<ReferralOnboarding> {
 
     final success = await _referralService.processReferralCode(code);
     
-    if (success) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Welcome! Referral code applied successfully! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid referral code. You can still enjoy AgroFlow!'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      Navigator.pop(context);
+    if (mounted) {
+      if (success) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome! Referral code applied successfully! 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid referral code. You can still enjoy AgroFlow!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 

@@ -9,7 +9,7 @@ class AIAnalysisService {
   final HybridStorageService _storageService = HybridStorageService();
   final WeatherService _weatherService = WeatherService();
   
-  static const String _apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8';
+  static const String _apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8'; // Replace with your actual Gemini API key
   static const String _apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$_apiKey';
 
   /// Performs comprehensive analysis when app opens
@@ -129,15 +129,26 @@ Provide practical farming advice based on this analysis:''';
         Uri.parse(_apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: body,
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['candidates'][0]['content']['parts'][0]['text'].trim();
+        if (data['candidates'] != null && data['candidates'].isNotEmpty) {
+          return data['candidates'][0]['content']['parts'][0]['text'].trim();
+        } else {
+          throw Exception('No AI response received');
+        }
+      } else if (response.statusCode == 403) {
+        throw Exception('Invalid API key - Please check your Gemini API configuration');
+      } else if (response.statusCode == 429) {
+        throw Exception('API rate limit exceeded - Please try again later');
       } else {
-        throw Exception('API Error: ${response.statusCode}');
+        throw Exception('API Error: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
+        throw Exception('Network connection failed - Check your internet connection');
+      }
       throw Exception('Analysis failed: $e');
     }
   }

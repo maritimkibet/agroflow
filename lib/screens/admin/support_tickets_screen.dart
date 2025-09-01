@@ -310,7 +310,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
           ticket.id,
           _adminService.currentAdmin!.id,
         );
-        if (success) {
+        if (mounted && success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ticket assigned successfully')),
           );
@@ -331,15 +331,17 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
 
   Future<void> _updateTicketStatus(SupportTicket ticket, TicketStatus status) async {
     final success = await _adminService.updateTicketStatus(ticket.id, status);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ticket status updated to ${_formatStatus(status)}')),
-      );
-      _loadTickets();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update ticket status')),
-      );
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ticket status updated to ${_formatStatus(status)}')),
+        );
+        _loadTickets();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update ticket status')),
+        );
+      }
     }
   }
 

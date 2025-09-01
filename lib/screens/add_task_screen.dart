@@ -258,7 +258,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.category),
                   ),
-                  value: _selectedTaskType,
+                  initialValue: _selectedTaskType,
                   items: _availableTaskTypes
                       .map((task) => DropdownMenuItem<String>(
                             value: task['name'] as String,

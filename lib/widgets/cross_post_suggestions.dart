@@ -218,20 +218,22 @@ class _CrossPostSuggestionsState extends State<CrossPostSuggestions> {
   Future<void> _acceptSuggestion(Map<String, dynamic> suggestion) async {
     final success = await _contentService.acceptSuggestion(suggestion['id']);
     
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Posted to AgroFlow successfully! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to post. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Posted to AgroFlow successfully! 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to post. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
     
     await _loadSuggestions();

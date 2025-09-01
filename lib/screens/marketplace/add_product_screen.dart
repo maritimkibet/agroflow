@@ -337,7 +337,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<ProductType>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     decoration: const InputDecoration(labelText: 'Product Type'),
                     items: ProductType.values
                         .map(
@@ -352,7 +352,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<ListingType>(
-                    value: _selectedListingType,
+                    initialValue: _selectedListingType,
                     decoration: const InputDecoration(labelText: 'Listing Type'),
                     items: ListingType.values
                         .map(

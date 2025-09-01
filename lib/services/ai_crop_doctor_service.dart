@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'hive_service.dart';
 import 'localization_service.dart';
@@ -43,17 +44,88 @@ class AICropDoctorService {
   }
 
   Future<Map<String, dynamic>> _callVisionAPI(String base64Image) async {
-    // Mock AI response - in production, integrate with actual AI service
-    await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+    try {
+      // Use Google Vision API for plant disease detection
+      const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8'; // Replace with your actual API key
+      const url = 'https://vision.googleapis.com/v1/images:annotate?key=$apiKey';
+      
+      final requestBody = {
+        'requests': [
+          {
+            'image': {'content': base64Image},
+            'features': [
+              {'type': 'LABEL_DETECTION', 'maxResults': 10},
+              {'type': 'TEXT_DETECTION', 'maxResults': 5}
+            ]
+          }
+        ]
+      };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return _analyzeVisionResponse(data);
+      } else {
+        throw Exception('Vision API Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Fallback to mock response if API fails
+      return _getMockDiagnosis();
+    }
+  }
+
+  Map<String, dynamic> _analyzeVisionResponse(Map<String, dynamic> visionData) {
+    // Analyze Google Vision API response for plant diseases
+    final labels = visionData['responses']?[0]?['labelAnnotations'] ?? [];
     
-    final diseases = [
-      {'disease': 'Leaf Blight', 'confidence': 0.85, 'severity': 'moderate'},
-      {'disease': 'Powdery Mildew', 'confidence': 0.78, 'severity': 'mild'},
-      {'disease': 'Rust', 'confidence': 0.92, 'severity': 'severe'},
-      {'disease': 'Bacterial Spot', 'confidence': 0.73, 'severity': 'moderate'},
-    ];
-    
-    return diseases[DateTime.now().millisecond % diseases.length];
+    // Look for disease-related keywords in labels
+    final diseaseKeywords = {
+      'leaf': ['Leaf Blight', 'Leaf Spot'],
+      'rust': ['Rust', 'Leaf Rust'],
+      'mildew': ['Powdery Mildew', 'Downy Mildew'],
+      'blight': ['Early Blight', 'Late Blight'],
+      'spot': ['Bacterial Spot', 'Black Spot'],
+      'wilt': ['Fusarium Wilt', 'Bacterial Wilt'],
+    };
+
+    String detectedDisease = 'Unknown Plant Condition';
+    double confidence = 0.5;
+    String severity = 'mild';
+
+    for (var label in labels) {
+      final description = label['description'].toString().toLowerCase();
+      final score = label['score'] ?? 0.5;
+      
+      for (var keyword in diseaseKeywords.keys) {
+        if (description.contains(keyword)) {
+          detectedDisease = diseaseKeywords[keyword]!.first;
+          confidence = score;
+          severity = score > 0.8 ? 'severe' : score > 0.6 ? 'moderate' : 'mild';
+          break;
+        }
+      }
+    }
+
+    return {
+      'disease': detectedDisease,
+      'confidence': confidence,
+      'severity': severity,
+    };
+  }
+
+  Map<String, dynamic> _getMockDiagnosis() {
+    // Return error when API is unavailable - no mock data
+    return {
+      'disease': 'Unable to analyze image',
+      'confidence': 0.0,
+      'severity': 'unknown',
+      'error': 'Vision API unavailable - please check your internet connection and API configuration'
+    };
   }
 
   Future<Map<String, dynamic>> _getTreatmentRecommendations(Map<String, dynamic> diagnosis) async {
@@ -162,32 +234,95 @@ class AICropDoctorService {
     };
   }
 
-  // Pest identification
+  // Pest identification - requires real AI implementation
   Future<Map<String, dynamic>> identifyPest(File imageFile) async {
     try {
-      // final bytes = await imageFile.readAsBytes(); // Reserved for future AI integration
-      // final base64Image = base64Encode(bytes); // Reserved for future AI integration
+      // Convert image to base64 for API call
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      // Use Google Vision API for pest identification
+      const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8'; // Replace with your actual API key
+      const url = 'https://vision.googleapis.com/v1/images:annotate?key=$apiKey';
       
-      // Mock pest identification
-      final pests = [
-        {'pest': 'Aphids', 'damage_level': 'moderate', 'urgency': 'medium'},
-        {'pest': 'Spider Mites', 'damage_level': 'severe', 'urgency': 'high'},
-        {'pest': 'Whiteflies', 'damage_level': 'mild', 'urgency': 'low'},
-        {'pest': 'Caterpillars', 'damage_level': 'severe', 'urgency': 'high'},
-      ];
-      
-      final pest = pests[DateTime.now().millisecond % pests.length];
-      
-      return {
-        'pest': pest['pest'],
-        'damage_level': pest['damage_level'],
-        'urgency': pest['urgency'],
-        'control_methods': _getPestControlMethods(pest['pest'] as String),
-        'biological_control': _getBiologicalControl(pest['pest'] as String),
+      final requestBody = {
+        'requests': [
+          {
+            'image': {'content': base64Image},
+            'features': [
+              {'type': 'LABEL_DETECTION', 'maxResults': 10},
+              {'type': 'OBJECT_LOCALIZATION', 'maxResults': 5}
+            ]
+          }
+        ]
       };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return _analyzePestResponse(data);
+      } else {
+        throw Exception('Vision API Error: ${response.statusCode}');
+      }
     } catch (e) {
-      return {'error': 'Failed to identify pest'};
+      return {
+        'error': 'Failed to identify pest: $e',
+        'note': 'Please ensure you have a valid Google Vision API key and internet connection'
+      };
     }
+  }
+
+  Map<String, dynamic> _analyzePestResponse(Map<String, dynamic> visionData) {
+    final labels = visionData['responses']?[0]?['labelAnnotations'] ?? [];
+    
+    // Look for pest-related keywords in labels
+    final pestKeywords = {
+      'aphid': ['Aphids', 'moderate', 'medium'],
+      'mite': ['Spider Mites', 'severe', 'high'],
+      'whitefly': ['Whiteflies', 'mild', 'low'],
+      'caterpillar': ['Caterpillars', 'severe', 'high'],
+      'beetle': ['Beetles', 'moderate', 'medium'],
+      'thrips': ['Thrips', 'mild', 'medium'],
+    };
+
+    String detectedPest = 'Unknown Pest';
+    String damageLevel = 'unknown';
+    String urgency = 'low';
+
+    for (var label in labels) {
+      final description = label['description'].toString().toLowerCase();
+      // final score = label['score'] ?? 0.5; // Score not used in current implementation
+      
+      for (var keyword in pestKeywords.keys) {
+        if (description.contains(keyword)) {
+          final pestInfo = pestKeywords[keyword]!;
+          detectedPest = pestInfo[0];
+          damageLevel = pestInfo[1];
+          urgency = pestInfo[2];
+          break;
+        }
+      }
+    }
+
+    if (detectedPest == 'Unknown Pest') {
+      return {
+        'error': 'No pest detected in image',
+        'note': 'Please ensure the image clearly shows the pest or pest damage'
+      };
+    }
+
+    return {
+      'pest': detectedPest,
+      'damage_level': damageLevel,
+      'urgency': urgency,
+      'control_methods': _getPestControlMethods(detectedPest),
+      'biological_control': _getBiologicalControl(detectedPest),
+    };
   }
 
   Map<String, List<String>> _getPestControlMethods(String pest) {
@@ -222,24 +357,122 @@ class AICropDoctorService {
     return bioControl[pest] ?? ['Beneficial insects', 'Natural predators'];
   }
 
-  // Soil health analysis from image
+  // Soil health analysis from image - requires real AI implementation
   Future<Map<String, dynamic>> analyzeSoilHealth(File imageFile) async {
-    // Mock soil analysis - in production, use AI to analyze soil color, texture, etc.
+    try {
+      // Convert image to base64 for API call
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      // Use Google Vision API for soil analysis
+      const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8'; // Replace with your actual API key
+      const url = 'https://vision.googleapis.com/v1/images:annotate?key=$apiKey';
+      
+      final requestBody = {
+        'requests': [
+          {
+            'image': {'content': base64Image},
+            'features': [
+              {'type': 'LABEL_DETECTION', 'maxResults': 10},
+              {'type': 'IMAGE_PROPERTIES'}
+            ]
+          }
+        ]
+      };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return _analyzeSoilResponse(data);
+      } else {
+        throw Exception('Vision API Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      return {
+        'error': 'Failed to analyze soil: $e',
+        'note': 'Please ensure you have a valid Google Vision API key and internet connection',
+        'recommendations': [
+          'Take a clear photo of the soil surface',
+          'Ensure good lighting conditions',
+          'Consider professional soil testing for accurate results',
+        ],
+      };
+    }
+  }
+
+  Map<String, dynamic> _analyzeSoilResponse(Map<String, dynamic> visionData) {
+    final labels = visionData['responses']?[0]?['labelAnnotations'] ?? [];
+    final colors = visionData['responses']?[0]?['imagePropertiesAnnotation']?['dominantColors']?['colors'] ?? [];
+    
+    // Analyze soil based on visual characteristics
+    String soilType = 'Unknown';
+    String moistureLevel = 'Unknown';
+    String organicMatter = 'Unknown';
+    
+    // Analyze dominant colors for soil characteristics
+    if (colors.isNotEmpty) {
+      final dominantColor = colors[0]['color'];
+      final red = dominantColor['red'] ?? 0;
+      final green = dominantColor['green'] ?? 0;
+      final blue = dominantColor['blue'] ?? 0;
+      
+      // Basic soil type estimation based on color
+      if (red > 100 && green < 80 && blue < 60) {
+        soilType = 'Clay (reddish)';
+      } else if (red > 80 && green > 60 && blue < 50) {
+        soilType = 'Loamy';
+      } else if (red < 60 && green < 60 && blue < 60) {
+        soilType = 'Sandy (dark)';
+      } else {
+        soilType = 'Mixed composition';
+      }
+      
+      // Estimate moisture based on color darkness
+      final brightness = (red + green + blue) / 3;
+      if (brightness < 80) {
+        moistureLevel = 'High (dark soil)';
+      } else if (brightness < 150) {
+        moistureLevel = 'Moderate';
+      } else {
+        moistureLevel = 'Low (light/dry soil)';
+      }
+    }
+
+    // Look for organic matter indicators in labels
+    for (var label in labels) {
+      final description = label['description'].toString().toLowerCase();
+      if (description.contains('compost') || description.contains('organic')) {
+        organicMatter = 'High';
+      } else if (description.contains('sand') || description.contains('dry')) {
+        organicMatter = 'Low';
+      }
+    }
+
+    if (organicMatter == 'Unknown') {
+      organicMatter = 'Moderate (estimated)';
+    }
+
     return {
-      'soil_type': 'Loamy',
-      'moisture_level': 'Adequate',
-      'organic_matter': 'Medium',
-      'ph_estimate': '6.5-7.0',
+      'soil_type': soilType,
+      'moisture_level': moistureLevel,
+      'organic_matter': organicMatter,
+      'ph_estimate': 'Requires lab testing',
+      'analysis_method': 'Visual AI analysis',
       'recommendations': [
-        'Add compost to improve organic matter',
-        'Test pH for accurate measurement',
+        'Conduct professional soil testing for accurate pH and nutrient levels',
+        'Add organic compost to improve soil structure',
+        'Test soil moisture regularly',
         'Consider cover crops for soil protection',
-        'Maintain proper drainage',
       ],
-      'deficiency_signs': [
-        'Slight nitrogen deficiency visible',
-        'Good phosphorus levels',
-        'Adequate potassium content',
+      'limitations': [
+        'Visual analysis provides estimates only',
+        'Lab testing recommended for precise measurements',
+        'Nutrient levels cannot be determined visually',
       ],
     };
   }

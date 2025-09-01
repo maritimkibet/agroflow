@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import '../models/admin_user.dart';
 import '../models/user.dart';
 import '../models/product.dart';
-import 'hybrid_storage_service.dart';
 import 'admin_setup_service.dart';
 
 class AdminService {
@@ -13,8 +11,8 @@ class AdminService {
   AdminService._internal();
 
   final firestore.FirebaseFirestore _firestore = firestore.FirebaseFirestore.instance;
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
-  final HybridStorageService _storage = HybridStorageService();
+  // final DatabaseReference _database = FirebaseDatabase.instance.ref(); // Reserved for future use
+  // final HybridStorageService _storage = HybridStorageService(); // Reserved for future use
 
   AdminUser? _currentAdmin;
   AdminUser? get currentAdmin => _currentAdmin;
@@ -367,11 +365,11 @@ class AdminService {
   }
 
   // Helper Methods
-  Future<void> _updateLastLogin(String adminId) async {
-    await _firestore.collection('admins').doc(adminId).update({
-      'lastLogin': DateTime.now().toIso8601String(),
-    });
-  }
+  // Future<void> _updateLastLogin(String adminId) async {
+  //   await _firestore.collection('admins').doc(adminId).update({
+  //     'lastLogin': DateTime.now().toIso8601String(),
+  //   });
+  // }
 
   Future<void> _logAdminAction(String action, Map<String, dynamic> details) async {
     if (_currentAdmin == null) return;
@@ -385,10 +383,10 @@ class AdminService {
     });
   }
 
-  String _hashPassword(String password) {
-    // In production, use proper password hashing like bcrypt
-    return password; // Simplified for demo
-  }
+  // String _hashPassword(String password) {
+  //   // In production, use proper password hashing like bcrypt
+  //   return password; // Simplified for demo
+  // }
 
   double _calculateGrowthRate(List<firestore.QueryDocumentSnapshot> docs) {
     // Calculate user growth rate over the last month

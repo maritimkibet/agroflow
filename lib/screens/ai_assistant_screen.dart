@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
 import '../services/hybrid_storage_service.dart';
 import '../services/weather_service.dart';
 import '../services/achievement_service.dart';
@@ -22,10 +25,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   bool _isLoading = false;
   User? _currentUser;
   Map<String, dynamic>? _weatherData;
+  File? _selectedImage;
 
   late FlutterTts _flutterTts;
   final HybridStorageService _storageService = HybridStorageService();
   final WeatherService _weatherService = WeatherService();
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -51,16 +56,15 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   void _addWelcomeMessage() {
     final userName = _currentUser?.name ?? 'there';
     final userRole = _currentUser?.role.name ?? 'user';
-    
-    String contextualMessage = 'Hello $userName! 🌾 I am AgroFlow AI, your intelligent agricultural assistant powered by Google Gemini. ';
-    contextualMessage += 'I can help with farming advice, weather insights, crop management, pest control, and marketplace guidance. ';
+
+    String contextualMessage =
+        'Hello $userName! 🌾 I am AgroFlow AI, your intelligent agricultural assistant powered by Google Gemini. ';
+    contextualMessage +=
+        'I can help with farming advice, weather insights, crop management, pest control, and marketplace guidance. ';
     contextualMessage += 'As a $userRole, what would you like to know today?';
-    
+
     setState(() {
-      _messages.add({
-        'role': 'ai',
-        'text': contextualMessage,
-      });
+      _messages.add({'role': 'ai', 'text': contextualMessage});
     });
   }
 
@@ -73,88 +77,124 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Future<void> _sendMessage() async {
     final userMessage = _controller.text.trim();
-    if (userMessage.isEmpty) return;
+    if (userMessage.isEmpty && _selectedImage == null) return;
 
     setState(() {
-      _messages.add({'role': 'user', 'text': userMessage});
+      if (userMessage.isNotEmpty) {
+        _messages.add({'role': 'user', 'text': userMessage});
+      }
       _isLoading = true;
       _controller.clear();
     });
 
-    // Track AI usage for achievements
+    // Track AI usage
     final achievementService = AchievementService();
     final analyticsService = GrowthAnalyticsService();
-    
+
     await analyticsService.trackAIAssistantUsed();
-    final unlockedAchievement = await achievementService.updateProgress('ai_helper');
-    
+    final unlockedAchievement = await achievementService.updateProgress(
+      'ai_helper',
+    );
     if (unlockedAchievement != null && mounted) {
       AchievementNotification.show(context, unlockedAchievement);
     }
 
     try {
-      final responseText = await _getGeminiResponse(_messages);
+      final responseText = await _getGeminiResponse(
+        userMessage,
+        _selectedImage,
+      );
       setState(() {
         _messages.add({'role': 'ai', 'text': responseText});
+        _selectedImage = null; // reset after sending
       });
       await _speak(responseText);
     } catch (e) {
       debugPrint('AI Error: $e');
-      setState(() {
-        _messages.add({'role': 'ai', 'text': 'Sorry, I am having trouble connecting to my AI brain right now. Please try again in a moment!'});
-      });
+      if (mounted) {
+        setState(() {
+          String errorMessage = 'Sorry, I am having trouble right now. ';
+          if (e.toString().contains('Invalid API key')) {
+            errorMessage += 'Please configure your Gemini API key.';
+          } else if (e.toString().contains('Network')) {
+            errorMessage += 'Please check your internet connection.';
+          } else if (e.toString().contains('Rate limit')) {
+            errorMessage += 'Too many requests - please wait and try again.';
+          } else {
+            errorMessage += 'Please try again in a moment!';
+          }
+          _messages.add({'role': 'ai', 'text': errorMessage});
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<String> _getGeminiResponse(List<Map<String, String>> messages) async {
-    const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8';
-    const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$apiKey';
+  Future<String> _getGeminiResponse(String text, File? imageFile) async {
+    const apiKey = 'YOUR_API_KEY'; // replace with your Gemini API key
+    const url =
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey';
 
     final systemPrompt = _buildSystemPrompt();
 
-    final contents = [
-      {
-        "parts": [
-          {"text": systemPrompt}
-        ]
-      },
-      for (var msg in messages)
-        {
-          "parts": [
-            {
-              "text": "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}"
-            }
-          ]
-        }
+    final List<Map<String, dynamic>> parts = [
+      {"text": systemPrompt},
+      if (text.isNotEmpty) {"text": text},
     ];
+
+    if (imageFile != null) {
+      final base64Image = base64Encode(await imageFile.readAsBytes());
+      parts.add({
+        "inlineData": {"mimeType": "image/jpeg", "data": base64Image},
+      });
+    }
+
+    final requestBody = {
+      "contents": [
+        {"parts": parts},
+      ],
+    };
 
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"contents": contents}),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['candidates'][0]['content']['parts'][0]['text'].trim();
+      if (data['candidates'] != null && data['candidates'].isNotEmpty) {
+        return data['candidates'][0]['content']['parts'][0]['text'].trim();
+      } else {
+        throw Exception('No AI response received');
+      }
+    } else if (response.statusCode == 403) {
+      throw Exception('Invalid API key - Please configure your Gemini API key');
+    } else if (response.statusCode == 429) {
+      throw Exception('Rate limit exceeded - Please try again in a moment');
     } else {
-      throw Exception('API Error: ${response.statusCode}');
+      throw Exception('API Error: ${response.statusCode} ${response.body}');
     }
   }
 
   String _buildSystemPrompt() {
-    final recentTasks = _storageService
-        .getAllTasks()
-        .where((task) =>
-            task.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
-        .toList();
+    final recentTasks =
+        _storageService
+            .getAllTasks()
+            .where(
+              (task) => task.date.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              ),
+            )
+            .toList();
 
-    String prompt = '''You are AgroFlow AI, a global agricultural and marketplace assistant powered by Google Gemini. You provide intelligent, context-aware farming advice.
-
+    String prompt =
+        '''You are AgroFlow AI, a farming assistant powered by Google Gemini. 
 User Information:
 - Role: ${_currentUser?.role.name ?? 'farmer'}
 - Name: ${_currentUser?.name ?? 'User'}
@@ -162,36 +202,30 @@ User Information:
 
     if (_weatherData != null) {
       prompt += '''
-
-Current Weather:
-- Temperature: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
+Weather:
+- Temp: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
 - Condition: ${_weatherData!['description'] ?? 'N/A'}
 - Humidity: ${_weatherData!['humidity'] ?? 'N/A'}%
-- Wind Speed: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
+- Wind: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
     }
 
     if (recentTasks.isNotEmpty) {
-      prompt += '''
-
-Recent Farming Activities (Last 30 days):''';
+      prompt += '\nRecent Farming Tasks:';
       for (final task in recentTasks.take(5)) {
-        final status = task.isCompleted ? '✅ Completed' : '⏳ Pending';
+        final status = task.isCompleted ? '✅ Done' : '⏳ Pending';
         final daysAgo = DateTime.now().difference(task.date).inDays;
-        prompt += '''
-- ${task.cropName}: ${task.taskDescription} ($status) - $daysAgo days ago''';
+        prompt +=
+            '\n- ${task.cropName}: ${task.taskDescription} ($status, $daysAgo days ago)';
       }
     }
 
     prompt += '''
-
 Instructions:
-- Provide intelligent, context-aware farming advice
-- Keep responses concise but informative
-- Use emojis to make responses engaging
-- Consider weather and seasonal factors
-- Be encouraging and supportive
-- Focus on practical, actionable advice''';
-    
+- Give practical farming advice
+- Be concise, clear, and supportive
+- Use emojis for engagement 🌱🌾☀️
+''';
+
     return prompt;
   }
 
@@ -202,6 +236,15 @@ Instructions:
       await _flutterTts.speak(text);
     } catch (e) {
       debugPrint('TTS Error: $e');
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
     }
   }
 
@@ -216,6 +259,13 @@ Instructions:
           icon: const Icon(Icons.psychology),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.image),
+            onPressed: _pickImage,
+            tooltip: "Attach image",
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -239,6 +289,27 @@ Instructions:
               ],
             ),
           ),
+          if (_selectedImage != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Stack(
+                children: [
+                  Image.file(_selectedImage!, height: 120),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _selectedImage = null;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
@@ -248,7 +319,8 @@ Instructions:
                   final message = _messages[index];
                   final isUser = message['role'] == 'user';
                   return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment:
+                        isUser ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       padding: const EdgeInsets.all(12),
@@ -256,9 +328,10 @@ Instructions:
                         maxWidth: MediaQuery.of(context).size.width * 0.8,
                       ),
                       decoration: BoxDecoration(
-                        color: isUser 
-                          ? Colors.green.shade300 
-                          : Colors.grey.shade200,
+                        color:
+                            isUser
+                                ? Colors.green.shade300
+                                : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -274,7 +347,10 @@ Instructions:
                   return Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 12,
+                      ),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,

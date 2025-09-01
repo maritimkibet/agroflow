@@ -419,15 +419,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 reasonController.text.trim(),
               );
               
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('User suspended successfully')),
-                );
-                _loadUsers();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Failed to suspend user')),
-                );
+              if (mounted) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('User suspended successfully')),
+                  );
+                  _loadUsers();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to suspend user')),
+                  );
+                }
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -441,15 +443,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   void _reactivateUser(User user) async {
     final success = await _adminService.reactivateUser(user.id);
     
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User reactivated successfully')),
-      );
-      _loadUsers();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to reactivate user')),
-      );
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User reactivated successfully')),
+        );
+        _loadUsers();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to reactivate user')),
+        );
+      }
     }
   }
 

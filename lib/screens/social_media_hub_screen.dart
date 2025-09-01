@@ -848,7 +848,7 @@ class _SocialMediaHubScreenState extends State<SocialMediaHubScreen> with Single
             final email = emailController.text.trim();
             final phone = phoneController.text.trim();
             
-            if (username.isNotEmpty && ((email.isNotEmpty ?? false) || (phone.isNotEmpty ?? false))) {
+            if (username.isNotEmpty && (email.isNotEmpty || phone.isNotEmpty)) {
               Navigator.pop(context, {
                 'username': username,
                 'email': email,
