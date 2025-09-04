@@ -71,6 +71,25 @@ class User extends HiveObject {
     );
   }
 
+  factory User.fromFirestore(dynamic doc) {
+    if (doc == null || !doc.exists) {
+      return User(id: '', name: 'Unknown User', role: UserRole.farmer);
+    }
+    
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return User(
+      id: doc.id,
+      name: data['name'] ?? 'Unknown User',
+      role: _parseUserRole(data['role']),
+      location: data['location'],
+      email: data['email'],
+      phone: data['phone'],
+      isActive: data['isActive'] ?? true,
+      createdAt: data['createdAt'] != null ? DateTime.tryParse(data['createdAt']) : null,
+      lastActive: data['lastActive'] != null ? DateTime.tryParse(data['lastActive']) : null,
+    );
+  }
+
   static UserRole _parseUserRole(dynamic role) {
     if (role == null) return UserRole.farmer;
     

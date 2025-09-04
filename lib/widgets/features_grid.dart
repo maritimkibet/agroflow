@@ -28,17 +28,38 @@ class FeaturesGrid extends StatelessWidget {
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 1.3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisCount: 3,
+              childAspectRatio: 1.1,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
               children: [
                 _buildFeatureCard(
                   context,
-                  '💰 Add Product',
-                  'List items for sale',
+                  '🤖 AI Assistant',
+                  'Smart farming advice',
+                  Colors.blue,
+                  '/ai_assistant',
+                ),
+                _buildFeatureCard(
+                  context,
+                  '📅 Calendar',
+                  'Task scheduling',
                   Colors.green,
-                  '/add_product',
+                  '/calendar',
+                ),
+                _buildFeatureCard(
+                  context,
+                  '🛒 Marketplace',
+                  'Buy & sell products',
+                  Colors.orange,
+                  '/marketplace',
+                ),
+                _buildFeatureCard(
+                  context,
+                  '👥 Community',
+                  'Farming discussions',
+                  Colors.deepOrange,
+                  '/community',
                 ),
                 _buildFeatureCard(
                   context,
@@ -49,17 +70,10 @@ class FeaturesGrid extends StatelessWidget {
                 ),
                 _buildFeatureCard(
                   context,
-                  '📱 Social Hub',
-                  'Share your farming journey',
-                  Colors.indigo,
-                  '/social_media_hub',
-                ),
-                _buildFeatureCard(
-                  context,
-                  '🤖 Smart Tools',
-                  'AI-powered automation',
-                  Colors.purple,
-                  '/automation',
+                  '💰 Expense Tracker',
+                  'Track costs & profits',
+                  Colors.cyan,
+                  '/expense_tracker',
                 ),
               ],
             ),
@@ -77,39 +91,76 @@ class FeaturesGrid extends StatelessWidget {
     String route,
   ) {
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, route),
-      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        try {
+          Navigator.pushNamed(context, route);
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Feature coming soon: ${title.substring(title.indexOf(' ') + 1)}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: 0.15),
+              color.withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              title.split(' ')[0], // Get emoji
-              style: const TextStyle(fontSize: 32),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                title.split(' ')[0], // Get emoji
+                style: const TextStyle(fontSize: 24),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               title.substring(title.indexOf(' ') + 1), // Get title without emoji
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: color.withValues(alpha: 0.9),
+                fontSize: 11,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 9,
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

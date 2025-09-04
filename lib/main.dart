@@ -34,6 +34,12 @@ import 'screens/automation_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/marketplace/add_product_screen.dart';
+import 'screens/marketplace/marketplace_screen.dart';
+import 'screens/ai_assistant_screen.dart';
+import 'screens/calendar_screen.dart';
+
+import 'screens/community/community_screen.dart';
+import 'screens/expense_tracker_screen.dart';
 import 'screens/legal/terms_conditions_screen.dart';
 import 'screens/legal/privacy_policy_screen.dart';
 import 'wrappers/auth_wrapper.dart';
@@ -59,9 +65,7 @@ void main() async {
 
     final databaseRef = FirebaseDatabase.instance.ref();
 
-    runApp(
-      MyApp(databaseRef: databaseRef),
-    );
+    runApp(MyApp(databaseRef: databaseRef));
 
     // Initialize remaining services in background after app starts
     _initializeBackgroundServices();
@@ -128,7 +132,7 @@ void _initializeBackgroundServices() async {
 
     // Initialize services in background
     await _initializeServices();
-    
+
     debugPrint('Background services initialized successfully');
   } catch (e) {
     debugPrint('Background initialization error: $e');
@@ -155,7 +159,7 @@ Future<void> _initializeServices() async {
     final achievementService = AchievementService();
     final referralService = ReferralService();
     final analyticsService = GrowthAnalyticsService();
-    
+
     // Initialize core services
     await Future.wait([
       hiveService.initializeCropData(),
@@ -163,10 +167,10 @@ Future<void> _initializeServices() async {
       achievementService.initialize(),
       referralService.initialize(),
     ]);
-    
+
     // Track app open for growth analytics
     await analyticsService.trackAppOpen();
-    
+
     // Initialize admin accounts (critical for production)
     final adminSetupService = AdminSetupService();
     await adminSetupService.initializeDefaultAdmins();
@@ -197,10 +201,7 @@ void _saveExistingTasks() {
 class MyApp extends StatelessWidget {
   final DatabaseReference databaseRef;
 
-  const MyApp({
-    super.key,
-    required this.databaseRef,
-  });
+  const MyApp({super.key, required this.databaseRef});
 
   @override
   Widget build(BuildContext context) {
@@ -209,17 +210,43 @@ class MyApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(
         seedColor: Colors.green,
         primary: Colors.green.shade700,
-        secondary: Colors.brown.shade600,
+        secondary: Colors.green.shade400,
+        surface: Colors.white,
+        background: Colors.grey.shade50,
       ),
       useMaterial3: true,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade700,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
     );
 
     return MaterialApp(
       title: platformService.getAppTitle(),
       debugShowCheckedModeBanner: false,
-      theme: platformService.getPlatformTheme(baseTheme).copyWith(
-        scaffoldBackgroundColor: Colors.green.shade50, // Prevent dark screen
-      ),
+      theme: platformService
+          .getPlatformTheme(baseTheme)
+          .copyWith(
+            scaffoldBackgroundColor:
+                Colors.green.shade50, // Prevent dark screen
+          ),
       initialRoute: '/',
       onGenerateRoute: (settings) {
         // Handle all routes through a single generator for better control
@@ -229,13 +256,9 @@ class MyApp extends StatelessWidget {
               builder: (context) => SplashScreen(databaseRef: databaseRef),
             );
           case '/auth':
-            return MaterialPageRoute(
-              builder: (context) => const AuthWrapper(),
-            );
+            return MaterialPageRoute(builder: (context) => const AuthWrapper());
           case '/login':
-            return MaterialPageRoute(
-              builder: (context) => const LoginScreen(),
-            );
+            return MaterialPageRoute(builder: (context) => const LoginScreen());
           case '/register':
             return MaterialPageRoute(
               builder: (context) => const RegisterScreen(),
@@ -249,9 +272,7 @@ class MyApp extends StatelessWidget {
               builder: (context) => const OnboardingScreen(),
             );
           case '/home':
-            return MaterialPageRoute(
-              builder: (context) => const HomeScreen(),
-            );
+            return MaterialPageRoute(builder: (context) => const HomeScreen());
           case '/referral':
             return MaterialPageRoute(
               builder: (context) => const ReferralScreen(),
@@ -296,6 +317,27 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (context) => const AddProductScreen(),
             );
+          case '/marketplace':
+            return MaterialPageRoute(
+              builder: (context) => const MarketplaceScreen(),
+            );
+          case '/ai_assistant':
+            return MaterialPageRoute(
+              builder: (context) => const AIAssistantScreen(),
+            );
+          case '/calendar':
+            return MaterialPageRoute(
+              builder: (context) => const CalendarScreen(),
+            );
+
+          case '/community':
+            return MaterialPageRoute(
+              builder: (context) => const CommunityScreen(),
+            );
+          case '/expense_tracker':
+            return MaterialPageRoute(
+              builder: (context) => const ExpenseTrackerScreen(),
+            );
           case '/terms_conditions':
             return MaterialPageRoute(
               builder: (context) => const TermsConditionsScreen(),
@@ -306,9 +348,7 @@ class MyApp extends StatelessWidget {
             );
           default:
             // Fallback to home for unknown routes
-            return MaterialPageRoute(
-              builder: (context) => const HomeScreen(),
-            );
+            return MaterialPageRoute(builder: (context) => const HomeScreen());
         }
       },
     );

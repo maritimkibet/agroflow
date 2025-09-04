@@ -163,9 +163,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
               '12. Contact Us',
               'If you have questions about this Privacy Policy or our data practices, please contact us:\n\n'
               'Email: privacy@agroflow.app\n'
-              'Address: [Your Company Address]\n'
-              'Phone: [Your Contact Number]\n\n'
-              'Data Protection Officer: [DPO Contact Information]',
+              'Address: Karen,Nairobi\n'
+              'Phone: 0740125950\n\n'
             ),
             
             const SizedBox(height: 32),

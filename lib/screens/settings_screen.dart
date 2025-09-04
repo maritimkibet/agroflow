@@ -36,9 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   bool _checkingForUpdates = false;
   
-  // Secret admin access
-  int _adminTapCount = 0;
-  DateTime? _lastAdminTap;
+  // Admin access
 
   final TextEditingController _currentPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
@@ -554,23 +552,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _handleAdminTap() {
-    final now = DateTime.now();
-    
-    // Reset counter if more than 3 seconds between taps
-    if (_lastAdminTap != null && now.difference(_lastAdminTap!).inSeconds > 3) {
-      _adminTapCount = 0;
-    }
-    
-    _adminTapCount++;
-    _lastAdminTap = now;
-    
-    if (_adminTapCount == 7) {
-      _showAdminAccessDialog();
-      _adminTapCount = 0; // Reset counter
-    } else if (_adminTapCount >= 4) {
-      // Give hint after 4 taps
-      _showSnackBar('Keep tapping... (${7 - _adminTapCount} more)');
-    }
+    // Direct admin access - no need for multiple taps
+    _showAdminAccessDialog();
   }
 
   void _showAdminAccessDialog() {
@@ -585,8 +568,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
         content: const Text(
-          'You have discovered the secret admin access!\n\n'
-          'This will take you to the administrative dashboard where you can manage users, content, and system settings.',
+          'Access the administrative dashboard to manage users, content, and system settings.',
         ),
         actions: [
           TextButton(
@@ -948,7 +930,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('AgroFlow v1.0.0'),
-                              Text('Tap 7 times for admin access', 
+                              Text('Tap for admin access', 
                                 style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),

@@ -203,7 +203,34 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Loading messages...'),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text('Error loading messages', style: TextStyle(color: Colors.red)),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 final messages = snapshot.data ?? [];
@@ -213,18 +240,49 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey.shade400,
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: Colors.green.shade400,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         Text(
-                          'Start a conversation about\n${widget.product.name}',
+                          'Start a conversation',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Ask questions about ${widget.product.name}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Say hello! 👋',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -233,38 +291,99 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
+                  reverse: true,
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index];
+                    final message = messages[messages.length - 1 - index];
                     final isMe = message.senderId == currentUser.id;
+                    final showAvatar = index == 0 || 
+                        messages[messages.length - index].senderId != message.senderId;
                     
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(12),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.75,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.green.shade300 : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(message.content),
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatTime(message.timestamp),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (!isMe && showAvatar) ...[
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.green.shade100,
+                              child: Text(
+                                widget.otherUser.name[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
+                          ] else if (!isMe) ...[
+                            const SizedBox(width: 40),
                           ],
-                        ),
+                          
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.green.shade500 : Colors.grey.shade200,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(20),
+                                  topRight: const Radius.circular(20),
+                                  bottomLeft: Radius.circular(isMe ? 20 : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : 20),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    message.content,
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white : Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatTime(message.timestamp),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          
+                          if (isMe && showAvatar) ...[
+                            const SizedBox(width: 8),
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.green.shade700,
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ] else if (isMe) ...[
+                            const SizedBox(width: 40),
+                          ],
+                        ],
                       ),
                     );
                   },
@@ -275,49 +394,82 @@ class _ChatScreenState extends State<ChatScreen> {
           
           // Message input
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: _hasInternet 
-                          ? 'Type a message...' 
-                          : 'No internet - use call button',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                          color: _hasInternet ? Colors.grey.shade300 : Colors.red.shade300,
+                          width: 1,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: _hasInternet 
+                              ? 'Type a message...' 
+                              : 'No internet - use call button',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade500,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.grey.shade400,
+                            size: 20,
+                          ),
+                        ),
+                        enabled: _hasInternet,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                        maxLines: null,
+                        textCapitalization: TextCapitalization.sentences,
                       ),
                     ),
-                    enabled: _hasInternet,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _hasInternet ? _sendMessage : null,
-                  icon: const Icon(Icons.send),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _hasInternet ? Colors.green.shade600 : Colors.grey.shade400,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_hasInternet ? Colors.green.shade600 : Colors.grey.shade400)
+                              .withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: _hasInternet ? _sendMessage : null,
+                      icon: const Icon(Icons.send_rounded),
+                      color: Colors.white,
+                      iconSize: 20,
+                      padding: const EdgeInsets.all(12),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

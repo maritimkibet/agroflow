@@ -128,13 +128,13 @@ class TermsConditionsScreen extends StatelessWidget {
               '12. Contact Information',
               'If you have questions about these Terms, please contact us at:\n'
               'Email: legal@agroflow.app\n'
-              'Address: [Your Company Address]\n'
-              'Phone: [Your Contact Number]',
+              'Address: Karen,Nairobi\n'
+              'Phone: 0740125950',
             ),
             
             _buildSection(
               '13. Governing Law',
-              'These Terms are governed by the laws of [Your Jurisdiction]. Any disputes will be resolved in the courts of [Your Jurisdiction].',
+              'These Terms are governed by the laws of the Judicial law. Any disputes will be resolved in the courts of the judicial law.',
             ),
             
             const SizedBox(height: 32),

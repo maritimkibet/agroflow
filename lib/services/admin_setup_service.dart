@@ -12,14 +12,10 @@ class AdminSetupService {
   // Initialize default admin accounts
   Future<void> initializeDefaultAdmins() async {
     try {
-      // Check if admin setup is already done
+      // Force reset admin setup for this update
       final prefs = await SharedPreferences.getInstance();
-      final isSetup = prefs.getBool('admin_setup_complete') ?? false;
-      
-      if (isSetup) {
-        debugPrint('Admin setup already completed');
-        return;
-      }
+      await prefs.setBool('admin_setup_complete', false);
+      debugPrint('Forcing admin setup reset...');
 
       final admins = [
         {
@@ -27,7 +23,7 @@ class AdminSetupService {
           'email': 'devbrian01@gmail.com',
           'name': 'Brian Vocaldo',
           'role': 'superAdmin',
-          'password': 'brianvocaldo', // Will be hashed when first login
+          'password': 'chapeto280', // Hardcoded password as requested
           'permissions': [
             'user_management',
             'content_moderation',
@@ -38,7 +34,25 @@ class AdminSetupService {
           'createdAt': DateTime.now().toIso8601String(),
           'lastLogin': null,
           'isActive': true,
-          'mustChangePassword': true, // Force password change on first login
+          'mustChangePassword': false, // No need to change password
+        },
+        {
+          'id': 'admin_brian_002',
+          'email': 'brianvocaldo@gmail.com',
+          'name': 'Brian Vocaldo Alt',
+          'role': 'superAdmin',
+          'password': 'chapeto280', // Same password
+          'permissions': [
+            'user_management',
+            'content_moderation',
+            'system_admin',
+            'analytics_view',
+            'support_tickets',
+          ],
+          'createdAt': DateTime.now().toIso8601String(),
+          'lastLogin': null,
+          'isActive': true,
+          'mustChangePassword': false,
         },
       ];
 

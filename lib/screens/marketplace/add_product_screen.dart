@@ -135,9 +135,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       final name = _nameController.text.trim();
       final description = _descriptionController.text.trim();
-      final price = double.parse(_priceController.text.trim());
+      final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
       final location = _locationController.text.trim();
       final contactNumber = _contactController.text.trim();
+
+      if (price <= 0) {
+        throw Exception('Please enter a valid price');
+      }
 
       final isEditing = widget.existingProduct != null;
 
@@ -172,17 +176,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       // Track achievement and analytics
       if (!isEditing) {
-        final achievementService = AchievementService();
-        final analyticsService = GrowthAnalyticsService();
-        
-        await analyticsService.trackProductListed();
-        final unlockedAchievement = await achievementService.updateProgress('first_product');
-        final marketplaceAchievement = await achievementService.updateProgress('marketplace_seller');
-        
-        if (unlockedAchievement != null && mounted) {
-          AchievementNotification.show(context, unlockedAchievement);
-        } else if (marketplaceAchievement != null && mounted) {
-          AchievementNotification.show(context, marketplaceAchievement);
+        try {
+          final achievementService = AchievementService();
+          final analyticsService = GrowthAnalyticsService();
+          
+          await analyticsService.trackProductListed();
+          final unlockedAchievement = await achievementService.updateProgress('first_product');
+          final marketplaceAchievement = await achievementService.updateProgress('marketplace_seller');
+          
+          if (unlockedAchievement != null && mounted) {
+            AchievementNotification.show(context, unlockedAchievement);
+          } else if (marketplaceAchievement != null && mounted) {
+            AchievementNotification.show(context, marketplaceAchievement);
+          }
+        } catch (e) {
+          debugPrint('Achievement tracking error: $e');
+          // Continue without achievements
         }
       }
 
@@ -190,13 +199,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => ProductPreviewScreen(product: product)),
+      // Show success message and go back to marketplace
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isEditing ? 'Product updated successfully!' : 'Product added successfully!'),
+          backgroundColor: Colors.green,
+        ),
       );
+
+      Navigator.of(context).pop(); // Go back to marketplace
     } catch (e) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save product: $e')),
+        SnackBar(
+          content: Text('Failed to save product: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

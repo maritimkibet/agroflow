@@ -12,14 +12,14 @@ import '../services/growth_analytics_service.dart';
 import '../widgets/achievement_notification.dart';
 import '../models/user.dart';
 
-class AiAssistantScreen extends StatefulWidget {
-  const AiAssistantScreen({super.key});
+class AIAssistantScreen extends StatefulWidget {
+  const AIAssistantScreen({super.key});
 
   @override
-  State<AiAssistantScreen> createState() => _AiAssistantScreenState();
+  State<AIAssistantScreen> createState() => _AIAssistantScreenState();
 }
 
-class _AiAssistantScreenState extends State<AiAssistantScreen> {
+class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;

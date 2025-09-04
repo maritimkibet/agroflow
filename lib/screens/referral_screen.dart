@@ -73,10 +73,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   ),
                   IconButton(
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _referralService.referralCode));
+                      Clipboard.setData(
+                        ClipboardData(text: _referralService.referralCode),
+                      );
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Code copied to clipboard!')),
+                          const SnackBar(
+                            content: Text('Code copied to clipboard!'),
+                          ),
                         );
                       }
                     },
@@ -108,7 +112,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () => _referralService.shareReferralCode(_selectedLanguage),
+          onPressed:
+              () => _referralService.shareReferralCode(_selectedLanguage),
           icon: const Icon(Icons.share),
           label: const Text('Share via Other Apps'),
           style: OutlinedButton.styleFrom(
@@ -135,14 +140,20 @@ class _ReferralScreenState extends State<ReferralScreen> {
               initialValue: _selectedLanguage,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
-              items: _referralService.getSupportedLanguages().map((languageCode) {
-                return DropdownMenuItem(
-                  value: languageCode,
-                  child: Text(_referralService.getLanguageDisplayName(languageCode)),
-                );
-              }).toList(),
+              items:
+                  _referralService.getSupportedLanguages().map((languageCode) {
+                    return DropdownMenuItem(
+                      value: languageCode,
+                      child: Text(
+                        _referralService.getLanguageDisplayName(languageCode),
+                      ),
+                    );
+                  }).toList(),
               onChanged: (value) {
                 if (value != null) {
                   setState(() {
@@ -172,7 +183,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
               _referralService.getReferralRewardText(),
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: _referralService.hasReferralRewards() ? Colors.green : Colors.orange,
+                color:
+                    _referralService.hasReferralRewards()
+                        ? Colors.green
+                        : Colors.orange,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -246,7 +260,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem('Referred', '${_referralService.referralCount}'),
-                _buildStatItem('Rewards', _referralService.hasReferralRewards() ? 'Unlocked' : 'Locked'),
+                _buildStatItem(
+                  'Rewards',
+                  _referralService.hasReferralRewards() ? 'Unlocked' : 'Locked',
+                ),
               ],
             ),
           ],
@@ -272,7 +289,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     if (code.isEmpty) return;
 
     final success = await _referralService.processReferralCode(code);
-    
+
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(

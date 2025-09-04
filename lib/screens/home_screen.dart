@@ -22,7 +22,7 @@ import 'add_task_screen.dart';
 import 'calendar_screen.dart';
 import 'marketplace/marketplace_screen.dart';
 import 'marketplace/add_product_screen.dart';
-import 'messaging/conversations_screen.dart';
+
 import 'settings_screen.dart';
 import 'ai_assistant_screen.dart';
 
@@ -524,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMarketTab() => const MarketplaceScreen();
   Widget _buildSettingsTab() => const SettingsScreen(); // ✅
-  Widget _buildGeminiChatTab() => const AiAssistantScreen(); // 👈 New tab widget for AI chat
+  Widget _buildGeminiChatTab() => const AIAssistantScreen(); // 👈 New tab widget for AI chat
 
   void _openAddProductScreen() {
     Navigator.push(
@@ -576,42 +576,106 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
-          // Achievements icon
-          IconButton(
-            icon: const Icon(Icons.emoji_events),
-            tooltip: 'Achievements',
-            onPressed: () {
-              Navigator.pushNamed(context, '/achievements');
+          // Three dots menu with tools
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (String value) {
+              switch (value) {
+                case 'achievements':
+                  Navigator.pushNamed(context, '/achievements');
+                  break;
+                case 'analytics':
+                  Navigator.pushNamed(context, '/analytics');
+                  break;
+                case 'referral':
+                  Navigator.pushNamed(context, '/referral');
+                  break;
+
+                case 'crop_doctor':
+                  Navigator.pushNamed(context, '/crop_doctor');
+                  break;
+                case 'automation':
+                  Navigator.pushNamed(context, '/automation');
+                  break;
+                case 'traceability':
+                  Navigator.pushNamed(context, '/traceability');
+                  break;
+                case 'climate_adaptation':
+                  Navigator.pushNamed(context, '/climate_adaptation');
+                  break;
+                case 'social_media_hub':
+                  Navigator.pushNamed(context, '/social_media_hub');
+                  break;
+              }
             },
-          ),
-          // Analytics icon
-          IconButton(
-            icon: const Icon(Icons.analytics),
-            tooltip: 'Your Stats',
-            onPressed: () {
-              Navigator.pushNamed(context, '/analytics');
-            },
-          ),
-          // Referral icon
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Invite Friends',
-            onPressed: () {
-              Navigator.pushNamed(context, '/referral');
-            },
-          ),
-          // Messages icon
-          IconButton(
-            icon: const Icon(Icons.message),
-            tooltip: 'Messages',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ConversationsScreen(),
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'achievements',
+                child: ListTile(
+                  leading: Icon(Icons.emoji_events, color: Colors.orange),
+                  title: Text('Achievements'),
+                  contentPadding: EdgeInsets.zero,
                 ),
-              );
-            },
+              ),
+              const PopupMenuItem<String>(
+                value: 'analytics',
+                child: ListTile(
+                  leading: Icon(Icons.analytics, color: Colors.blue),
+                  title: Text('Your Stats'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'referral',
+                child: ListTile(
+                  leading: Icon(Icons.share, color: Colors.green),
+                  title: Text('Invite Friends'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'crop_doctor',
+                child: ListTile(
+                  leading: Icon(Icons.local_hospital, color: Colors.red),
+                  title: Text('Crop Doctor'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'automation',
+                child: ListTile(
+                  leading: Icon(Icons.smart_toy, color: Colors.indigo),
+                  title: Text('Smart Automation'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'traceability',
+                child: ListTile(
+                  leading: Icon(Icons.track_changes, color: Colors.teal),
+                  title: Text('Traceability'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'climate_adaptation',
+                child: ListTile(
+                  leading: Icon(Icons.thermostat, color: Colors.deepOrange),
+                  title: Text('Climate Tools'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'social_media_hub',
+                child: ListTile(
+                  leading: Icon(Icons.hub, color: Colors.pink),
+                  title: Text('Social Media Hub'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
           // Sync status indicator
           FutureBuilder<Map<String, dynamic>>(
