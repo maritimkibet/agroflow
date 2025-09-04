@@ -175,11 +175,17 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       AchievementNotification.show(context, unlockedAchievement);
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Task saved successfully')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task saved successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
-    Navigator.of(context).pop();
+      // Navigate back to tasks screen (home screen with tasks tab)
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   Future<void> _confirmNavigateToOnboarding() async {

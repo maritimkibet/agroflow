@@ -16,6 +16,7 @@ import '../widgets/growth_dashboard.dart';
 import '../widgets/features_grid.dart';
 import '../widgets/cross_post_suggestions.dart';
 import '../widgets/weather_crop_suggestions.dart';
+import '../services/admin_setup_service.dart';
 
 
 import 'add_task_screen.dart';
@@ -25,6 +26,7 @@ import 'marketplace/add_product_screen.dart';
 
 import 'settings_screen.dart';
 import 'ai_assistant_screen.dart';
+import 'progress_tracker_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -51,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _temperature = '';
   int? _humidity;
   double? _windSpeed;
-  String? _iconCode;
+
   
   String _aiInsights = '';
   bool _isLoadingInsights = true;
@@ -61,11 +63,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _currentUser = _storageService.getCurrentUser();
     _storageService.startSyncMonitoring(); // Start monitoring connectivity
+    _initializeAdminSetup(); // Initialize admin accounts
     _checkFirstLaunch();
     _loadWeather();
     _checkSyncStatus();
     _checkForUpdates(); // Check for app updates
     _loadAIInsights(); // Load AI analysis
+  }
+
+  Future<void> _initializeAdminSetup() async {
+    try {
+      final adminSetupService = AdminSetupService();
+      await adminSetupService.initializeDefaultAdmins();
+    } catch (e) {
+      debugPrint('Admin setup error: $e');
+    }
   }
 
   Future<void> _checkForUpdates() async {
@@ -170,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : '';
         _humidity = weather['humidity'] as int?;
         _windSpeed = (weather['windSpeed'] as num?)?.toDouble();
-        _iconCode = weather['iconCode'] as String?;
+
       });
     }
   }
@@ -327,21 +339,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildWeatherCard() {
-    String iconUrl = _iconCode != null
-        ? 'https://openweathermap.org/img/wn/$_iconCode@2x.png'
-        : '';
-
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: iconUrl.isNotEmpty
-            ? Image.network(iconUrl, width: 48, height: 48)
-            : const Icon(Icons.wb_sunny_outlined, size: 36, color: Colors.orange),
-        title: Text(_temperature.isNotEmpty ? _temperature : 'Loading...'),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Weather Today',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _temperature.isNotEmpty ? _temperature : 'Loading...',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(_weatherSummary.isNotEmpty ? _weatherSummary : 'Fetching weather...'),
             if (_humidity != null) Text('Humidity: $_humidity%'),
             if (_windSpeed != null) Text('Wind Speed: ${_windSpeed!.toStringAsFixed(1)} m/s'),
@@ -371,8 +392,6 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.psychology, color: Colors.white, size: 28),
-                  const SizedBox(width: 12),
                   Text(
                     'AI Farm Analysis',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -420,10 +439,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton.icon(
+                    TextButton(
                       onPressed: _loadAIInsights,
-                      icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
-                      label: const Text(
+                      child: const Text(
                         'Refresh Analysis',
                         style: TextStyle(color: Colors.white),
                       ),
@@ -443,10 +461,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       color: Colors.green.shade50,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: const Icon(Icons.tips_and_updates, color: Colors.green, size: 30),
-        title: const Text("Quick Farming Tip"),
-        subtitle: Text(tip),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Quick Farming Tip",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(tip),
+          ],
+        ),
       ),
     );
   }
@@ -460,8 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.task_alt, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            SizedBox(height: 64),
             Text('No tasks yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
             SizedBox(height: 8),
             Text('Add your first farming task!', style: TextStyle(color: Colors.grey)),
@@ -483,10 +512,24 @@ class _HomeScreenState extends State<HomeScreen> {
           final task = tasks[index];
           return Card(
             child: ListTile(
-              leading: Icon(
-                task.isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                color: task.isCompleted ? Colors.green : Colors.grey,
-                size: 28,
+              leading: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: task.isCompleted ? Colors.green : Colors.grey.shade300,
+                ),
+                child: task.isCompleted
+                    ? const Center(
+                        child: Text(
+                          '✓',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
               title: Text(
                 task.taskDescription,
@@ -513,6 +556,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   task.isCompleted = !task.isCompleted;
                 });
                 await _storageService.addOrUpdateTask(task);
+                
+                // Show completion feedback
+                if (task.isCompleted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✅ Task completed: ${task.taskDescription}'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('📝 Task marked as pending: ${task.taskDescription}'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                
                 setState(() {}); // Refresh UI
               },
             ),
@@ -551,15 +614,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildTasksTab(),           // Index 2
       ]);
       navItems.addAll([
-        const BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-        const BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
-        const BottomNavigationBarItem(icon: Icon(Icons.task_alt), label: 'Tasks'),
+        const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'Dashboard'),
+        const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'Calendar'),
+        const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'Tasks'),
       ]);
     }
     
     // All users get marketplace
     tabs.add(_buildMarketTab());
-    navItems.add(const BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Market'));
+    navItems.add(const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'Market'));
     
     // All users get settings and AI chat
     tabs.addAll([
@@ -567,8 +630,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _buildGeminiChatTab(),
     ]);
     navItems.addAll([
-      const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-      const BottomNavigationBarItem(icon: Icon(Icons.psychology), label: 'AI Chat'),
+      const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'Settings'),
+      const BottomNavigationBarItem(icon: SizedBox.shrink(), label: 'AI Chat'),
     ]);
 
     return Scaffold(
@@ -576,108 +639,59 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('AgroFlow - ${_currentUser?.name ?? 'User'}'),
         backgroundColor: Colors.green.shade700,
         actions: [
-          // Three dots menu with tools
+          // Text-only menu - professional look
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: const Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
             onSelected: (String value) {
               switch (value) {
-                case 'achievements':
-                  Navigator.pushNamed(context, '/achievements');
+                case 'crop_doctor':
+                  if (mounted) Navigator.pushNamed(context, '/crop_doctor');
                   break;
                 case 'analytics':
-                  Navigator.pushNamed(context, '/analytics');
+                  if (mounted) Navigator.pushNamed(context, '/analytics');
                   break;
-                case 'referral':
-                  Navigator.pushNamed(context, '/referral');
+                case 'achievements':
+                  if (mounted) Navigator.pushNamed(context, '/achievements');
                   break;
-
-                case 'crop_doctor':
-                  Navigator.pushNamed(context, '/crop_doctor');
-                  break;
-                case 'automation':
-                  Navigator.pushNamed(context, '/automation');
-                  break;
-                case 'traceability':
-                  Navigator.pushNamed(context, '/traceability');
-                  break;
-                case 'climate_adaptation':
-                  Navigator.pushNamed(context, '/climate_adaptation');
-                  break;
-                case 'social_media_hub':
-                  Navigator.pushNamed(context, '/social_media_hub');
+                case 'progress':
+                  if (mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProgressTrackerScreen()),
+                    );
+                  }
                   break;
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
-                value: 'achievements',
-                child: ListTile(
-                  leading: Icon(Icons.emoji_events, color: Colors.orange),
-                  title: Text('Achievements'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+                value: 'crop_doctor',
+                child: Text('Crop Doctor'),
               ),
               const PopupMenuItem<String>(
                 value: 'analytics',
-                child: ListTile(
-                  leading: Icon(Icons.analytics, color: Colors.blue),
-                  title: Text('Your Stats'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+                child: Text('Farm Analytics'),
               ),
               const PopupMenuItem<String>(
-                value: 'referral',
-                child: ListTile(
-                  leading: Icon(Icons.share, color: Colors.green),
-                  title: Text('Invite Friends'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'crop_doctor',
-                child: ListTile(
-                  leading: Icon(Icons.local_hospital, color: Colors.red),
-                  title: Text('Crop Doctor'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+                value: 'achievements',
+                child: Text('Achievements'),
               ),
               const PopupMenuItem<String>(
-                value: 'automation',
-                child: ListTile(
-                  leading: Icon(Icons.smart_toy, color: Colors.indigo),
-                  title: Text('Smart Automation'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'traceability',
-                child: ListTile(
-                  leading: Icon(Icons.track_changes, color: Colors.teal),
-                  title: Text('Traceability'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'climate_adaptation',
-                child: ListTile(
-                  leading: Icon(Icons.thermostat, color: Colors.deepOrange),
-                  title: Text('Climate Tools'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'social_media_hub',
-                child: ListTile(
-                  leading: Icon(Icons.hub, color: Colors.pink),
-                  title: Text('Social Media Hub'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+                value: 'progress',
+                child: Text('My Progress'),
               ),
             ],
           ),
-          // Sync status indicator
+          // Sync status text indicator
           FutureBuilder<Map<String, dynamic>>(
             future: _storageService.getSyncStatus(),
             builder: (context, snapshot) {
@@ -687,23 +701,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 final pendingItems = syncStatus['pendingItems'] as int;
                 
                 if (pendingItems > 0) {
-                  return IconButton(
-                    icon: Icon(
-                      Icons.sync,
-                      color: isOnline ? Colors.orange : Colors.red,
-                    ),
-                    tooltip: '$pendingItems items pending sync',
+                  return TextButton(
                     onPressed: () async {
                       if (isOnline) {
                         await _storageService.syncPendingItems();
-                        setState(() {});
+                        if (mounted) setState(() {});
                       }
                     },
+                    child: Text(
+                      'Sync ($pendingItems)',
+                      style: TextStyle(
+                        color: isOnline ? Colors.orange : Colors.red,
+                        fontSize: 12,
+                      ),
+                    ),
                   );
                 } else if (isOnline) {
-                  return const Icon(Icons.cloud_done, color: Colors.white);
+                  return const Text(
+                    'Online',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  );
                 } else {
-                  return const Icon(Icons.cloud_off, color: Colors.grey);
+                  return const Text(
+                    'Offline',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  );
                 }
               }
               return const SizedBox.shrink();
@@ -711,10 +733,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Show add product button when on marketplace tab
           if (_selectedIndex == (isBuyerOnly ? 0 : 3))
-            IconButton(
-              icon: const Icon(Icons.add_shopping_cart),
-              tooltip: 'Add Product',
+            TextButton(
               onPressed: _openAddProductScreen,
+              child: const Text(
+                'Add Product',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
         ],
       ),
@@ -733,9 +757,8 @@ class _HomeScreenState extends State<HomeScreen> {
         items: navItems,
       ),
       floatingActionButton: (!isBuyerOnly && _selectedIndex == 2)
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               backgroundColor: Colors.green.shade700,
-              child: const Icon(Icons.add),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -747,6 +770,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
+              label: const Text('Add Task'),
             )
           : null,
     );

@@ -149,33 +149,80 @@ class NotificationService {
     }
   }
 
-  /// Schedule notification for a specific task, 15 minutes before the task time
+  /// Schedule notification for a specific task with multiple reminders
   Future<void> scheduleNotificationForTask(CropTask task) async {
     try {
-      final DateTime notifyTime = task.date.subtract(const Duration(minutes: 15));
+      final DateTime taskDate = task.date;
+      final DateTime now = DateTime.now();
 
-      if (notifyTime.isBefore(DateTime.now())) {
-        debugPrint('Notification time already passed for task: ${task.id}');
-        return;
+      // Schedule week before reminder
+      final DateTime weekBefore = taskDate.subtract(const Duration(days: 7));
+      if (weekBefore.isAfter(now)) {
+        await _scheduleTaskReminder(
+          task,
+          weekBefore,
+          'Week Reminder',
+          'Task coming up in 1 week: ${task.taskDescription}',
+          task.id.hashCode + 1000,
+        );
       }
 
-      final tz.TZDateTime scheduledDate = tz.TZDateTime.from(notifyTime, tz.local);
+      // Schedule day before reminder
+      final DateTime dayBefore = taskDate.subtract(const Duration(days: 1));
+      if (dayBefore.isAfter(now)) {
+        await _scheduleTaskReminder(
+          task,
+          dayBefore,
+          'Day Reminder',
+          'Task tomorrow: ${task.taskDescription}',
+          task.id.hashCode + 2000,
+        );
+      }
+
+      // Schedule 1 hour before reminder
+      final DateTime hourBefore = taskDate.subtract(const Duration(hours: 1));
+      if (hourBefore.isAfter(now)) {
+        await _scheduleTaskReminder(
+          task,
+          hourBefore,
+          'Task Due Soon',
+          'Task in 1 hour: ${task.taskDescription}',
+          task.id.hashCode + 3000,
+        );
+      }
+
+      debugPrint('Scheduled reminders for task: ${task.id}');
+    } catch (e) {
+      debugPrint('Error scheduling notification for task: $e');
+    }
+  }
+
+  Future<void> _scheduleTaskReminder(
+    CropTask task,
+    DateTime reminderTime,
+    String title,
+    String body,
+    int notificationId,
+  ) async {
+    try {
+      final tz.TZDateTime scheduledDate = tz.TZDateTime.from(reminderTime, tz.local);
 
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
-          id: task.id.hashCode,
+          id: notificationId,
           channelKey: 'daily_tasks',
-          title: 'Upcoming Task: ${task.cropName}',
-          body: '${task.taskDescription} at ${task.date.hour.toString().padLeft(2, '0')}:${task.date.minute.toString().padLeft(2, '0')}',
+          title: '$title: ${task.cropName}',
+          body: body,
           notificationLayout: NotificationLayout.Default,
-          payload: {'taskId': task.id},
+          payload: {'taskId': task.id, 'type': 'reminder'},
         ),
-        schedule: NotificationCalendar.fromDate(date: scheduledDate, allowWhileIdle: true),
+        schedule: NotificationCalendar.fromDate(
+          date: scheduledDate,
+          allowWhileIdle: true,
+        ),
       );
-
-      debugPrint('Scheduled notification for task: ${task.id} at $notifyTime');
     } catch (e) {
-      debugPrint('Error scheduling notification for task: $e');
+      debugPrint('Error scheduling reminder: $e');
     }
   }
 

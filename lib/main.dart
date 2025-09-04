@@ -211,8 +211,7 @@ class MyApp extends StatelessWidget {
         seedColor: Colors.green,
         primary: Colors.green.shade700,
         secondary: Colors.green.shade400,
-        surface: Colors.white,
-        background: Colors.grey.shade50,
+        surface: Colors.grey.shade50,
       ),
       useMaterial3: true,
       appBarTheme: AppBarTheme(

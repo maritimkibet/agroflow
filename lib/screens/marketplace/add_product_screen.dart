@@ -147,7 +147,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
-        throw Exception('User not logged in');
+        // Show login prompt instead of error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to add products'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+        return;
       }
 
       final productId = isEditing

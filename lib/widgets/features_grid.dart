@@ -12,68 +12,86 @@ class FeaturesGrid extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.apps, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  'Smart Farming Tools',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            Text(
+              'Smart Farming Tools',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
             ),
             const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              childAspectRatio: 1.1,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+            Column(
               children: [
-                _buildFeatureCard(
-                  context,
-                  '🤖 AI Assistant',
-                  'Smart farming advice',
-                  Colors.blue,
-                  '/ai_assistant',
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'AI Assistant',
+                        'Smart farming advice and recommendations',
+                        Colors.blue,
+                        '/ai_assistant',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'Calendar',
+                        'Schedule and track farming tasks',
+                        Colors.green,
+                        '/calendar',
+                      ),
+                    ),
+                  ],
                 ),
-                _buildFeatureCard(
-                  context,
-                  '📅 Calendar',
-                  'Task scheduling',
-                  Colors.green,
-                  '/calendar',
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'Marketplace',
+                        'Buy and sell agricultural products',
+                        Colors.orange,
+                        '/marketplace',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'Community',
+                        'Connect with other farmers',
+                        Colors.deepOrange,
+                        '/community',
+                      ),
+                    ),
+                  ],
                 ),
-                _buildFeatureCard(
-                  context,
-                  '🛒 Marketplace',
-                  'Buy & sell products',
-                  Colors.orange,
-                  '/marketplace',
-                ),
-                _buildFeatureCard(
-                  context,
-                  '👥 Community',
-                  'Farming discussions',
-                  Colors.deepOrange,
-                  '/community',
-                ),
-                _buildFeatureCard(
-                  context,
-                  '🩺 Crop Doctor',
-                  'AI disease diagnosis',
-                  Colors.red,
-                  '/crop_doctor',
-                ),
-                _buildFeatureCard(
-                  context,
-                  '💰 Expense Tracker',
-                  'Track costs & profits',
-                  Colors.cyan,
-                  '/expense_tracker',
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'Crop Doctor',
+                        'AI-powered disease diagnosis',
+                        Colors.red,
+                        '/crop_doctor',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFeatureButton(
+                        context,
+                        'Expense Tracker',
+                        'Monitor costs and profits',
+                        Colors.cyan,
+                        '/expense_tracker',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -83,7 +101,7 @@ class FeaturesGrid extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureCard(
+  Widget _buildFeatureButton(
     BuildContext context,
     String title,
     String subtitle,
@@ -97,68 +115,43 @@ class FeaturesGrid extends StatelessWidget {
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Feature coming soon: ${title.substring(title.indexOf(' ') + 1)}'),
-              backgroundColor: Colors.orange,
+              content: Text('Opening $title...'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 1),
             ),
           );
         }
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha: 0.15),
-              color.withValues(alpha: 0.05),
-            ],
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withValues(alpha: 0.3),
+            width: 1,
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                title.split(' ')[0], // Get emoji
-                style: const TextStyle(fontSize: 24),
-              ),
-            ),
-            const SizedBox(height: 6),
             Text(
-              title.substring(title.indexOf(' ') + 1), // Get title without emoji
+              title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: color.withValues(alpha: 0.9),
-                fontSize: 11,
+                fontSize: 16,
               ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 9,
-                color: Colors.grey.shade600,
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                height: 1.3,
               ),
-              textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
