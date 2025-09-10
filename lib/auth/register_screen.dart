@@ -1,11 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import '../services/error_service.dart';
-import '../services/validation_service.dart';
+import '../services/hive_service.dart';
+import '../models/user.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -53,70 +50,76 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ErrorService.handleError(context, e, customMessage: 'Failed to pick image');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
       }
-    }
-  }
-
-  Future<String?> _uploadProfilePicture(String uid) async {
-    if (_pickedImage == null) return null;
-
-    try {
-      final storageRef = FirebaseStorage.instance.ref().child('user_profiles/$uid.jpg');
-      await storageRef.putFile(_pickedImage!);
-      return await storageRef.getDownloadURL();
-    } catch (e) {
-      // Profile picture upload failure shouldn't block registration
-      return null;
     }
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords don't match")),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Create user account
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Use local authentication instead of Firebase for demo
+      final hiveService = HiveService();
+      
+      // Check if user already exists
+      final existingUser = await hiveService.getUserByEmail(_emailController.text.trim());
+      if (existingUser != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User with this email already exists'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Create new user locally
+      final uid = DateTime.now().millisecondsSinceEpoch.toString();
+      final newUser = User(
+        id: uid,
+        name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        role: UserRole.farmer,
+        createdAt: DateTime.now(),
       );
 
-      final user = credential.user;
-      if (user != null) {
-        // Upload profile picture (optional)
-        String? photoUrl;
-        try {
-          photoUrl = await _uploadProfilePicture(user.uid);
-        } catch (e) {
-          // Continue even if photo upload fails
-        }
+      // Save user locally
+      await hiveService.saveUser(newUser);
+      await hiveService.setCurrentUser(newUser);
 
-        // Save user profile to Firestore
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'displayName': _nameController.text.trim(),
-          'email': user.email,
-          'photoUrl': photoUrl ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-          'role': 'farmer',
-          'isProfileComplete': false,
-        });
-
-        // Update Firebase Auth display name
-        await user.updateDisplayName(_nameController.text.trim());
-        if (photoUrl != null) {
-          await user.updatePhotoURL(photoUrl);
-        }
-
-        if (mounted) {
-          ErrorService.showSuccess(context, 'Account created successfully!');
-          Navigator.pushReplacementNamed(context, '/auth');
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       if (mounted) {
-        ErrorService.handleError(context, e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -148,7 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                
+
                 Text(
                   'Join AgroFlow',
                   style: TextStyle(
@@ -158,9 +161,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 Text(
                   'Start your smart farming journey',
                   style: TextStyle(
@@ -169,9 +172,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Profile Picture
                 Center(
                   child: GestureDetector(
@@ -182,7 +185,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.grey.shade200,
-                        border: Border.all(color: Colors.green.shade300, width: 2),
+                        border: Border.all(
+                            color: Colors.green.shade300, width: 2),
                       ),
                       child: _pickedImage != null
                           ? ClipOval(
@@ -199,9 +203,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 Text(
                   'Tap to add profile picture (optional)',
                   style: TextStyle(
@@ -210,15 +214,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Name Field
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
-                  validator: ValidationService.validateName,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return "Enter your full name";
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
                     labelText: 'Full Name',
                     prefixIcon: const Icon(Icons.person_outlined),
@@ -229,15 +238,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fillColor: Colors.white,
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  validator: ValidationService.validateEmail,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return "Enter your email";
+                    }
+                    if (!value.contains("@")) {
+                      return "Enter a valid email";
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
                     labelText: 'Email Address',
                     prefixIcon: const Icon(Icons.email_outlined),
@@ -248,21 +265,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fillColor: Colors.white,
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
-                  validator: ValidationService.validatePassword,
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
+                      return "Password must be at least 6 characters";
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -271,25 +296,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fillColor: Colors.white,
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Confirm Password Field
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _register(),
-                  validator: (value) => ValidationService.validateConfirmPassword(
-                    _passwordController.text,
-                    value,
-                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Confirm your password";
+                    }
+                    if (value != _passwordController.text) {
+                      return "Passwords don't match";
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirmPassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      icon: Icon(_obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () => setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -298,9 +332,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fillColor: Colors.white,
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Register Button
                 SizedBox(
                   height: 50,
@@ -319,18 +353,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text(
                             'Create Account',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -351,7 +387,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
               ],
             ),

@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _currentUser = _storageService.getCurrentUser();
+    _loadCurrentUser();
     _storageService.startSyncMonitoring(); // Start monitoring connectivity
     _initializeAdminSetup(); // Initialize admin accounts
     _checkFirstLaunch();
@@ -69,6 +69,23 @@ class _HomeScreenState extends State<HomeScreen> {
     _checkSyncStatus();
     _checkForUpdates(); // Check for app updates
     _loadAIInsights(); // Load AI analysis
+  }
+
+  void _loadCurrentUser() {
+    final user = _storageService.getCurrentUser();
+    if (user != _currentUser) {
+      setState(() {
+        _currentUser = user;
+        _selectedIndex = 0; // Reset to first tab when user changes
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check for user changes when returning to this screen
+    _loadCurrentUser();
   }
 
   Future<void> _initializeAdminSetup() async {
@@ -670,6 +687,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                   break;
+                case 'admin':
+                  if (mounted) Navigator.pushNamed(context, '/admin_login');
+                  break;
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -688,6 +708,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const PopupMenuItem<String>(
                 value: 'progress',
                 child: Text('My Progress'),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'admin',
+                child: Text('Admin Panel'),
               ),
             ],
           ),

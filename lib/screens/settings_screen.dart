@@ -7,6 +7,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/hybrid_storage_service.dart';
+import '../services/currency_service.dart';
+import '../models/currency.dart';
+import '../models/user.dart' as app_user;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,14 +23,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
   final HybridStorageService _storageService = HybridStorageService();
+  final CurrencyPreferenceService _currencyService = CurrencyPreferenceService();
 
   User? _currentUser;
+  Currency? _currentCurrency;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _currentPasswordController = TextEditingController();
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmNewPasswordController = TextEditingController();
+  final TextEditingController _confirmNewPasswordController =
+      TextEditingController();
 
   File? _pickedImage;
   String? _photoUrl;
@@ -60,7 +67,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _fetchUserData() async {
     if (_currentUser == null) return;
     try {
-      final doc = await _firestore.collection('users').doc(_currentUser!.uid).get();
+      final doc =
+          await _firestore.collection('users').doc(_currentUser!.uid).get();
       if (doc.exists) {
         final data = doc.data()!;
         setState(() {
@@ -94,7 +102,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<String?> _uploadProfilePicture(String uid) async {
     if (_pickedImage == null) return _photoUrl;
     try {
-      final storageRef = FirebaseStorage.instance.ref().child('user_profiles/$uid.jpg');
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'user_profiles/$uid.jpg',
+      );
       final uploadTask = storageRef.putFile(_pickedImage!);
       final snapshot = await uploadTask.whenComplete(() {});
       return await snapshot.ref.getDownloadURL();
@@ -129,7 +139,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showSnackBar('Name cannot be empty.');
       return;
     }
-    if (newEmail.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(newEmail)) {
+    if (newEmail.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(newEmail)) {
       _showSnackBar('Please enter a valid email address.');
       return;
     }
@@ -148,7 +159,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
 
-    if ((wantsEmailChange || wantsPasswordChange) && _currentPasswordController.text.isEmpty) {
+    if ((wantsEmailChange || wantsPasswordChange) &&
+        _currentPasswordController.text.isEmpty) {
       _showSnackBar('Please enter your current password to confirm changes.');
       return;
     }
@@ -175,7 +187,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _firestore.collection('users').doc(_currentUser!.uid).update({
         'displayName': newName,
         'photoUrl': updatedPhotoUrl,
-        'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        'phone':
+            _phoneController.text.trim().isNotEmpty
+                ? _phoneController.text.trim()
+                : null,
       });
 
       if (wantsEmailChange) {
@@ -206,12 +221,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _updateUserRole(app_user.UserRole newRole) async {
+    if (_currentUser == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Update in local storage
+      final storageService = HybridStorageService();
+      final currentUserData = storageService.getCurrentUser();
+      
+      if (currentUserData != null) {
+        final updatedUser = app_user.User(
+          id: currentUserData.id,
+          name: currentUserData.name,
+          email: currentUserData.email,
+          role: newRole,
+          location: currentUserData.location,
+          phone: currentUserData.phone,
+          createdAt: currentUserData.createdAt,
+        );
+        
+        await storageService.saveUserProfile(updatedUser);
+        await storageService.setCurrentUser(updatedUser);
+        
+        _showSnackBar('Role updated successfully! Please restart the app to see changes.');
+        
+        // Refresh the current user reference
+        setState(() {
+          // This will trigger a rebuild with the new role
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Failed to update role: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _clearHiveBoxes() async {
     try {
       final boxNamesToClear = [
-        'crop_tasks', 'users', 'products', 'crop_data', 'settings', 'sync_queue'
+        'crop_tasks',
+        'users',
+        'products',
+        'crop_data',
+        'settings',
+        'sync_queue',
       ];
-      
+
       for (final boxName in boxNamesToClear) {
         try {
           if (Hive.isBoxOpen(boxName)) {
@@ -230,35 +288,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _confirmLogout() async {
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout Options'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Choose how you want to logout:'),
-            SizedBox(height: 16),
-            Text('• Keep Data: Your tasks and settings will be saved'),
-            SizedBox(height: 8),
-            Text('• Clear Data: All local data will be removed'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('cancel'),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Logout Options'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Choose how you want to logout:'),
+                SizedBox(height: 16),
+                Text('• Keep Data: Your tasks and settings will be saved'),
+                SizedBox(height: 8),
+                Text('• Clear Data: All local data will be removed'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop('cancel'),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop('keep_data'),
+                child: const Text('Keep Data'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                onPressed: () => Navigator.of(context).pop('clear_data'),
+                child: const Text('Clear Data'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('keep_data'),
-            child: const Text('Keep Data'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            onPressed: () => Navigator.of(context).pop('clear_data'),
-            child: const Text('Clear Data'),
-          ),
-        ],
-      ),
     );
 
     if (result == 'keep_data') {
@@ -271,7 +330,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _logoutKeepData() async {
     try {
       setState(() => _isLoading = true);
-      
+
       try {
         await _storageService.syncPendingItems();
       } catch (e) {
@@ -295,7 +354,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _isLoading = true);
 
       await _auth.signOut();
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       await _clearHiveBoxes();
@@ -312,9 +371,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -330,9 +389,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = _pickedImage != null
-        ? FileImage(_pickedImage!)
-        : (_photoUrl != null && _photoUrl!.isNotEmpty ? NetworkImage(_photoUrl!) : null);
+    final imageProvider =
+        _pickedImage != null
+            ? FileImage(_pickedImage!)
+            : (_photoUrl != null && _photoUrl!.isNotEmpty
+                ? NetworkImage(_photoUrl!)
+                : null);
 
     return Scaffold(
       appBar: AppBar(
@@ -355,28 +417,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   radius: 60,
                   backgroundColor: Colors.grey.shade300,
                   backgroundImage: imageProvider as ImageProvider<Object>?,
-                  child: imageProvider == null
-                      ? Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.green.shade100,
-                          ),
-                          child: Center(
-                            child: Text(
-                              _nameController.text.isNotEmpty 
-                                  ? _nameController.text[0].toUpperCase()
-                                  : 'U',
-                              style: TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade700,
+                  child:
+                      imageProvider == null
+                          ? Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.green.shade100,
+                            ),
+                            child: Center(
+                              child: Text(
+                                _nameController.text.isNotEmpty
+                                    ? _nameController.text[0].toUpperCase()
+                                    : 'U',
+                                style: TextStyle(
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      : null,
+                          )
+                          : null,
                 ),
               ),
               const SizedBox(height: 16),
@@ -417,7 +480,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 enabled: !_isLoading,
               ),
+              const SizedBox(height: 16),
+              
+              // Role Selection
+              DropdownButtonFormField<app_user.UserRole>(
+                initialValue: null, // We'll handle this differently
+                decoration: const InputDecoration(
+                  labelText: 'My Role',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: app_user.UserRole.farmer,
+                    child: Text('🌾 Farmer - I grow crops and manage farming activities'),
+                  ),
+                  DropdownMenuItem(
+                    value: app_user.UserRole.buyer,
+                    child: Text('🛒 Buyer/Seller - I buy and sell agricultural products'),
+                  ),
+                  DropdownMenuItem(
+                    value: app_user.UserRole.both,
+                    child: Text('🔄 Both - I am both a farmer and buyer/seller'),
+                  ),
+                ],
+                onChanged: _isLoading ? null : (app_user.UserRole? newRole) {
+                  if (newRole != null) {
+                    _updateUserRole(newRole);
+                  }
+                },
+              ),
               const SizedBox(height: 32),
+
+              // Currency Selection
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.monetization_on, color: Colors.green),
+                  title: const Text('Currency'),
+                  subtitle: FutureBuilder<Currency>(
+                    future: _currencyService.getCurrentCurrency(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return Text('${snapshot.data!.name} (${snapshot.data!.symbol})');
+                      }
+                      return const Text('Loading...');
+                    },
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () async {
+                    final result = await Navigator.pushNamed(context, '/currency_selection');
+                    if (result != null && mounted) {
+                      setState(() {}); // Refresh to show new currency
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Change Password Section
               const Align(
@@ -469,16 +587,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(fontSize: 18),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Save Changes'),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Save Changes'),
                 ),
               ),
               const SizedBox(height: 32),
@@ -487,9 +606,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: _isLoading ? null : () {
-                    Navigator.pushNamed(context, '/admin_login');
-                  },
+                  onPressed:
+                      _isLoading
+                          ? null
+                          : () {
+                            Navigator.pushNamed(context, '/admin_login');
+                          },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.blue,
                     side: const BorderSide(color: Colors.blue),
@@ -506,9 +628,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isLoading ? null : () {
-                        Navigator.pushNamed(context, '/terms_conditions');
-                      },
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/terms_conditions',
+                                );
+                              },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.grey.shade700,
                         side: BorderSide(color: Colors.grey.shade400),
@@ -520,9 +648,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isLoading ? null : () {
-                        Navigator.pushNamed(context, '/privacy_policy');
-                      },
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : () {
+                                Navigator.pushNamed(context, '/privacy_policy');
+                              },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.grey.shade700,
                         side: BorderSide(color: Colors.grey.shade400),

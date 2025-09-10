@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product.dart';
-import 'product_detail_screen.dart';
+import '../../services/marketplace_service.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -19,12 +18,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  List<Product> _productsFromSnapshot(QuerySnapshot snapshot) {
-    return snapshot.docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      return Product.fromMap(data, id: doc.id);
-    }).toList();
-  }
+
 
   List<String> _getUniqueRegions(List<Product> products) {
     final regions = products
@@ -121,8 +115,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      body: StreamBuilder<List<Product>>(
+        stream: MarketplaceService().getProducts(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error loading products: ${snapshot.error}'));
@@ -131,7 +125,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final allProducts = _productsFromSnapshot(snapshot.data!);
+          final allProducts = snapshot.data ?? [];
           final regions = _getUniqueRegions(allProducts);
           final filteredProducts = _filterProducts(allProducts);
 
@@ -308,11 +302,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   ),
                                 ),
                                 onTap: () {
-                                  Navigator.push(
+                                  Navigator.pushNamed(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ProductDetailScreen(product: product),
-                                    ),
+                                    '/product-detail',
+                                    arguments: product,
                                   );
                                 },
                               ),

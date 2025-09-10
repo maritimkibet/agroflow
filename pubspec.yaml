@@ -62,6 +62,9 @@ dependencies:
   
   # QR code generation
   qr_flutter: ^4.1.0
+  
+  # Charts for admin dashboard
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:

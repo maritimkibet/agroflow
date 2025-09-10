@@ -1,0 +1,20 @@
+mutation SeedData @auth(level: USER) {
+  farm_upsertMany(data: [
+    {
+      name: "Example Farm 1",
+      location: "Example Location 1",
+      sizeAcres: 100.0,
+      type: "Crop",
+      userId_expr: "auth.uid"
+    },
+    {
+      name: "Example Farm 2",
+      location: "Example Location 2",
+      sizeAcres: 200.0,
+      type: "Livestock",
+      userId_expr: "auth.uid"
+    }
+  ]) {
+    id
+  }
+}

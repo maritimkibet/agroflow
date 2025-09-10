@@ -39,14 +39,21 @@ class ProductAdapter extends TypeAdapter<Product> {
       category: fields[19] as String,
       metadata: (fields[20] as Map?)?.cast<String, dynamic>(),
       tags: (fields[21] as List).cast<String>(),
-      userName: fields[22] as String,
+      sellerName: fields[22] as String,
+      quantity: fields[23] as double?,
+      unit: fields[24] as String?,
+      harvestDate: fields[25] as DateTime?,
+      expiryDate: fields[26] as DateTime?,
+      isOrganic: fields[27] as bool,
+      certifications: (fields[28] as List?)?.cast<String>(),
+      updatedAt: fields[29] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Product obj) {
     writer
-      ..writeByte(23)
+      ..writeByte(30)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -92,7 +99,21 @@ class ProductAdapter extends TypeAdapter<Product> {
       ..writeByte(21)
       ..write(obj.tags)
       ..writeByte(22)
-      ..write(obj.userName);
+      ..write(obj.sellerName)
+      ..writeByte(23)
+      ..write(obj.quantity)
+      ..writeByte(24)
+      ..write(obj.unit)
+      ..writeByte(25)
+      ..write(obj.harvestDate)
+      ..writeByte(26)
+      ..write(obj.expiryDate)
+      ..writeByte(27)
+      ..write(obj.isOrganic)
+      ..writeByte(28)
+      ..write(obj.certifications)
+      ..writeByte(29)
+      ..write(obj.updatedAt);
   }
 
   @override

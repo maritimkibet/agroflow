@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../services/hybrid_storage_service.dart';
@@ -136,50 +134,52 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   }
 
   Future<String> _getGeminiResponse(String text, File? imageFile) async {
-    const apiKey = 'YOUR_API_KEY'; // replace with your Gemini API key
-    const url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=$apiKey';
-
-    final systemPrompt = _buildSystemPrompt();
-
-    final List<Map<String, dynamic>> parts = [
-      {"text": systemPrompt},
-      if (text.isNotEmpty) {"text": text},
-    ];
-
+    // Mock AI responses for demo purposes
+    await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+    
+    final lowerText = text.toLowerCase();
+    
+    // Pattern recognition for smart responses
+    if (lowerText.contains('hi') || lowerText.contains('hello') || lowerText.contains('hey') || 
+        lowerText.contains('good morning') || lowerText.contains('good afternoon') || 
+        lowerText.contains('good evening') || lowerText.trim() == 'hi' || lowerText.trim() == 'hello') {
+      return "Hello! 👋 I'm AgroFlow AI, your farming assistant. I can help you with:\n\n🌱 Crop management advice\n🌦️ Weather-based recommendations\n🐛 Pest and disease identification\n💰 Market insights\n📊 Farm analytics\n\nWhat would you like to know about your farm today?";
+    }
+    
+    if (lowerText.contains('how are you') || lowerText.contains('how do you do')) {
+      return "I'm doing great, thank you for asking! 😊 I'm here and ready to help you with all your farming needs. Whether you need advice on crops, weather insights, or market information, I'm at your service!\n\nHow can I assist you with your farm today?";
+    }
+    
+    if (lowerText.contains('thank') || lowerText.contains('thanks')) {
+      return "You're very welcome! 🌟 I'm always happy to help fellow farmers succeed. Remember, I'm here 24/7 whenever you need farming advice, weather updates, or market insights.\n\nIs there anything else I can help you with today?";
+    }
+    
+    if (lowerText.contains('weather') || lowerText.contains('rain') || lowerText.contains('temperature')) {
+      return "🌤️ **Weather Update & Farming Advice:**\n\n📊 **Current Conditions:**\n• Temperature: ${_weatherData?['temperature']?.round() ?? 25}°C\n• Humidity: ${_weatherData?['humidity'] ?? 65}%\n• Conditions: ${_weatherData?['description'] ?? 'Partly cloudy'}\n\n🌱 **Farming Recommendations:**\n• Best time to water: Early morning (6-8 AM)\n• Avoid spraying in windy conditions\n• Monitor soil moisture levels\n• Protect sensitive plants if temperature drops\n\n📅 **Planning Tip:** Check weather forecast before major farming activities!\n\nNeed specific advice for your crops?";
+    }
+    
+    if (lowerText.contains('dry') || lowerText.contains('water') || lowerText.contains('irrigation')) {
+      return "🌿 I see your plants might need attention! Here's what I recommend:\n\n💧 **Immediate Actions:**\n• Check soil moisture 2-3 inches deep\n• Water early morning or late evening\n• Apply mulch to retain moisture\n\n🌡️ **Weather Consideration:**\n• Current temperature: ${_weatherData?['temperature']?.round() ?? 25}°C\n• Humidity: ${_weatherData?['humidity'] ?? 65}%\n\n📋 **Watering Schedule:**\n• Deep watering 2-3 times per week\n• Adjust based on plant type and season\n\nWould you like specific advice for your crop type?";
+    }
+    
+    if (lowerText.contains('pest') || lowerText.contains('bug') || lowerText.contains('insect') || lowerText.contains('disease')) {
+      return "🐛 **Pest & Disease Management:**\n\n🔍 **Common Signs to Watch:**\n• Yellowing or spotted leaves\n• Holes in leaves or fruits\n• Unusual growth patterns\n• Sticky residue on plants\n\n🌿 **Organic Solutions:**\n• Neem oil spray (2-3 times/week)\n• Companion planting with marigolds\n• Beneficial insects like ladybugs\n• Proper spacing for air circulation\n\n📸 **Pro Tip:** Take a photo of affected plants for more specific diagnosis!\n\nWhat symptoms are you seeing on your plants?";
+    }
+    
+    if (lowerText.contains('market') || lowerText.contains('price') || lowerText.contains('sell')) {
+      return "💰 **Market Insights & Pricing:**\n\n📈 **Current Trends:**\n• Organic produce: 15-20% premium\n• Local markets: Higher margins\n• Direct-to-consumer: Best profits\n\n🎯 **Selling Strategies:**\n• Harvest at optimal ripeness\n• Clean and grade your produce\n• Build relationships with buyers\n• Consider value-added products\n\n📊 **Price Optimization:**\n• Track seasonal price patterns\n• Monitor competitor pricing\n• Quality over quantity approach\n\nWhich crops are you planning to sell?";
+    }
+    
+    if (lowerText.contains('fertilizer') || lowerText.contains('nutrient') || lowerText.contains('soil')) {
+      return "🌱 **Soil & Nutrition Management:**\n\n🧪 **Soil Health Basics:**\n• Test pH levels (6.0-7.0 ideal for most crops)\n• Check organic matter content\n• Ensure proper drainage\n\n🌿 **Organic Fertilizers:**\n• Compost: Slow-release nutrients\n• Bone meal: Phosphorus boost\n• Fish emulsion: Quick nitrogen\n• Kelp meal: Trace minerals\n\n📅 **Feeding Schedule:**\n• Pre-planting: Compost incorporation\n• Growing season: Bi-weekly liquid feeds\n• Flowering: Reduce nitrogen, increase phosphorus\n\nWhat type of crops are you growing?";
+    }
+    
     if (imageFile != null) {
-      final base64Image = base64Encode(await imageFile.readAsBytes());
-      parts.add({
-        "inlineData": {"mimeType": "image/jpeg", "data": base64Image},
-      });
+      return "📸 **Image Analysis:**\n\nI can see you've shared an image! Based on visual analysis, here are some general observations:\n\n🔍 **What I Notice:**\n• Plant health indicators\n• Growth stage assessment\n• Environmental conditions\n• Potential issues to monitor\n\n💡 **Recommendations:**\n• Continue monitoring plant development\n• Maintain consistent care routine\n• Document changes with photos\n• Consider environmental factors\n\nFor more specific analysis, please describe what concerns you about this plant!";
     }
-
-    final requestBody = {
-      "contents": [
-        {"parts": parts},
-      ],
-    };
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-        return data['candidates'][0]['content']['parts'][0]['text'].trim();
-      } else {
-        throw Exception('No AI response received');
-      }
-    } else if (response.statusCode == 403) {
-      throw Exception('Invalid API key - Please configure your Gemini API key');
-    } else if (response.statusCode == 429) {
-      throw Exception('Rate limit exceeded - Please try again in a moment');
-    } else {
-      throw Exception('API Error: ${response.statusCode} ${response.body}');
-    }
+    
+    // Default helpful response
+    return "🌾 **AgroFlow AI at Your Service!**\n\nI understand you're asking about: \"$text\"\n\n💡 **Here's my advice:**\n• Focus on consistent plant care routines\n• Monitor weather conditions regularly\n• Keep detailed records of your farming activities\n• Consider sustainable farming practices\n\n🎯 **Specific Help Available:**\n• Crop management strategies\n• Pest and disease identification\n• Weather-based recommendations\n• Market timing advice\n• Soil health optimization\n\nCould you be more specific about what aspect of farming you'd like help with? I'm here to provide detailed, actionable advice! 🚜";
   }
 
   String _buildSystemPrompt() {

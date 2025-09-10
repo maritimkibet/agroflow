@@ -505,12 +505,14 @@ class _SearchPostsDialogState extends State<SearchPostsDialog> {
                               ),
                               onTap: () {
                                 Navigator.pop(context);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PostDetailScreen(post: post),
-                                  ),
-                                );
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => PostDetailScreen(post: post),
+                                    ),
+                                  );
+                                }
                               },
                             );
                           },

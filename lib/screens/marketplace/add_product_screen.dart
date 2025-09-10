@@ -10,8 +10,8 @@ import '../../models/product.dart';
 import '../../services/platform_service.dart';
 import '../../services/achievement_service.dart';
 import '../../services/growth_analytics_service.dart';
+import '../../services/hive_service.dart';
 import '../../widgets/achievement_notification.dart';
-import '../onboarding_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
   final Product? existingProduct;
@@ -148,13 +148,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
         // Show login prompt instead of error
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please log in to add products'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        Navigator.pushReplacementNamed(context, '/login');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to add products'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/login');
+        }
         return;
       }
 
@@ -177,10 +179,24 @@ class _AddProductScreenState extends State<AddProductScreen> {
         contactNumber: contactNumber.isNotEmpty ? contactNumber : null,
         category: _selectedType?.toString().split('.').last ?? 'Other',
         tags: [], // Empty tags for now
-        userName: currentUser.displayName ?? 'Unknown User',
+        sellerName: currentUser.displayName ?? 'Unknown User',
       );
 
-      await _firestore.collection('products').doc(product.id).set(product.toMap());
+      // Save to both Firestore and local storage
+      try {
+        await _firestore.collection('products').doc(product.id).set(product.toMap());
+      } catch (e) {
+        debugPrint('Failed to save to Firestore: $e');
+        // Continue with local storage even if Firestore fails
+      }
+      
+      // Always save to local storage for offline access
+      try {
+        final hiveService = HiveService();
+        await hiveService.addProduct(product);
+      } catch (e) {
+        debugPrint('Failed to save to local storage: $e');
+      }
 
       // Track achievement and analytics
       if (!isEditing) {
@@ -227,12 +243,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  Future<void> _confirmNavigateToOnboarding() async {
+  Future<void> _confirmRoleSwitch() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm'),
-        content: const Text('Do you want to go back to onboarding? Unsaved changes will be lost.'),
+        title: const Text('Switch Role'),
+        content: const Text('Do you want to switch your role? This will change your app experience.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -240,17 +256,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
+            child: const Text('Switch Role'),
           ),
         ],
       ),
     );
 
     if (confirmed == true && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        (route) => false,
-      );
+      // Navigate to profile setup to change role
+      Navigator.pushNamed(context, '/profile_setup');
     }
   }
 
@@ -562,7 +576,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _isSaving ? null : _saveProduct,
-                    onLongPress: _confirmNavigateToOnboarding,
+                    onLongPress: _confirmRoleSwitch,
                     style: buttonStyle,
                     child: _isSaving
                         ? const SizedBox(

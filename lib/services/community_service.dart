@@ -22,54 +22,25 @@ class CommunityService {
     File? video,
   }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      // Upload images
+      // For demo purposes, simulate successful post creation
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Mock image URLs for demo
       List<String> imageUrls = [];
       for (int i = 0; i < images.length; i++) {
-        final ref = _storage.ref().child('community_posts/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-        await ref.putFile(images[i]);
-        final url = await ref.getDownloadURL();
-        imageUrls.add(url);
+        imageUrls.add('demo_image_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
       }
 
-      // Upload video if provided
+      // Mock video URL if provided
       String? videoUrl;
       if (video != null) {
-        final ref = _storage.ref().child('community_posts/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_video.mp4');
-        await ref.putFile(video);
-        videoUrl = await ref.getDownloadURL();
+        videoUrl = 'demo_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
       }
 
-      // Get user data
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      final userData = User.fromFirestore(userDoc);
-
-      // Create post
-      final post = CommunityPost(
-        id: '',
-        userId: user.uid,
-        userName: userData.name,
-        userAvatar: userData.email ?? '',
-        title: title,
-        content: content,
-        category: category,
-        cropType: cropType,
-        region: region.isEmpty ? (userData.location ?? '') : region,
-        tags: tags,
-        imageUrls: imageUrls,
-        videoUrl: videoUrl,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      final docRef = await _firestore.collection('community_posts').add(post.toFirestore());
+      // Create mock post ID
+      final postId = 'post_${DateTime.now().millisecondsSinceEpoch}';
       
-      // Update user reputation
-      await _updateUserReputation(user.uid, 'post_created');
-      
-      return docRef.id;
+      return postId;
     } catch (e) {
       throw Exception('Failed to create post: $e');
     }
@@ -83,24 +54,123 @@ class CommunityService {
     List<String>? tags,
     int limit = 20,
   }) {
-    Query query = _firestore.collection('community_posts')
-        .orderBy('createdAt', descending: true);
+    // Return mock posts for presentation
+    return Stream.value(_getMockPosts(category, cropType, region, tags, limit));
+  }
 
-    if (category != null && category.isNotEmpty) {
-      query = query.where('category', isEqualTo: category);
-    }
-    if (cropType != null && cropType.isNotEmpty) {
-      query = query.where('cropType', isEqualTo: cropType);
-    }
-    if (region != null && region.isNotEmpty) {
-      query = query.where('region', isEqualTo: region);
-    }
+  static List<CommunityPost> _getMockPosts(String? category, String? cropType, String? region, List<String>? tags, int limit) {
+    final now = DateTime.now();
+    final mockPosts = [
+      CommunityPost(
+        id: '1',
+        userId: 'user1',
+        userName: 'Sarah Johnson',
+        userAvatar: 'sarah@example.com',
+        title: 'Best practices for organic tomato farming',
+        content: 'I\'ve been growing organic tomatoes for 5 years and wanted to share some tips that have worked well for me. First, soil preparation is crucial...',
+        category: 'tip',
+        cropType: 'Tomatoes',
+        region: 'California',
+        tags: ['organic', 'tomatoes', 'soil'],
+        imageUrls: [],
+        videoUrl: null,
+        likes: 24,
+        comments: 8,
+        views: 156,
+        createdAt: now.subtract(const Duration(hours: 2)),
+        updatedAt: now.subtract(const Duration(hours: 2)),
+      ),
+      CommunityPost(
+        id: '2',
+        userId: 'user2',
+        userName: 'Mike Chen',
+        userAvatar: 'mike@example.com',
+        title: 'Help! My corn plants are showing yellow spots',
+        content: 'I noticed yellow spots appearing on my corn leaves yesterday. The weather has been quite humid lately. Could this be a fungal infection? Any advice would be appreciated!',
+        category: 'question',
+        cropType: 'Corn',
+        region: 'Iowa',
+        tags: ['corn', 'disease', 'help'],
+        imageUrls: [],
+        videoUrl: null,
+        likes: 12,
+        comments: 15,
+        views: 89,
+        createdAt: now.subtract(const Duration(hours: 6)),
+        updatedAt: now.subtract(const Duration(hours: 6)),
+      ),
+      CommunityPost(
+        id: '3',
+        userId: 'user3',
+        userName: 'Maria Rodriguez',
+        userAvatar: 'maria@example.com',
+        title: 'Successful harvest season - sharing my joy!',
+        content: 'Just finished harvesting my vegetable garden and I\'m so proud of the results! This year\'s yield was 30% better than last year. The key was consistent watering and proper fertilization.',
+        category: 'discussion',
+        cropType: 'Mixed Vegetables',
+        region: 'Texas',
+        tags: ['harvest', 'success', 'vegetables'],
+        imageUrls: [],
+        videoUrl: null,
+        likes: 45,
+        comments: 22,
+        views: 234,
+        createdAt: now.subtract(const Duration(hours: 12)),
+        updatedAt: now.subtract(const Duration(hours: 12)),
+      ),
+      CommunityPost(
+        id: '4',
+        userId: 'user4',
+        userName: 'David Kim',
+        userAvatar: 'david@example.com',
+        title: 'Irrigation system recommendations?',
+        content: 'I\'m planning to upgrade my irrigation system for next season. Currently using sprinklers but considering drip irrigation. What are your experiences with different systems?',
+        category: 'question',
+        cropType: 'Rice',
+        region: 'Arkansas',
+        tags: ['irrigation', 'equipment', 'advice'],
+        imageUrls: [],
+        videoUrl: null,
+        likes: 18,
+        comments: 11,
+        views: 127,
+        createdAt: now.subtract(const Duration(days: 1)),
+        updatedAt: now.subtract(const Duration(days: 1)),
+      ),
+      CommunityPost(
+        id: '5',
+        userId: 'user5',
+        userName: 'Emma Thompson',
+        userAvatar: 'emma@example.com',
+        title: 'Climate change adaptation strategies',
+        content: 'With changing weather patterns, I\'ve had to adapt my farming practices. Here are some strategies that have helped me maintain productivity despite unpredictable weather...',
+        category: 'tip',
+        cropType: 'Wheat',
+        region: 'Kansas',
+        tags: ['climate', 'adaptation', 'sustainability'],
+        imageUrls: [],
+        videoUrl: null,
+        likes: 67,
+        comments: 31,
+        views: 445,
+        createdAt: now.subtract(const Duration(days: 2)),
+        updatedAt: now.subtract(const Duration(days: 2)),
+      ),
+    ];
 
-    query = query.limit(limit);
+    // Filter posts based on criteria
+    var filtered = mockPosts.where((post) {
+      if (category != null && category.isNotEmpty && post.category != category) return false;
+      if (cropType != null && cropType.isNotEmpty && post.cropType != cropType) return false;
+      if (region != null && region.isNotEmpty && post.region != region) return false;
+      if (tags != null && tags.isNotEmpty) {
+        final hasMatchingTag = tags.any((tag) => post.tags.contains(tag));
+        if (!hasMatchingTag) return false;
+      }
+      return true;
+    }).toList();
 
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => CommunityPost.fromFirestore(doc)).toList();
-    });
+    return filtered.take(limit).toList();
   }
 
   // Get posts by user location

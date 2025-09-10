@@ -5,6 +5,9 @@ import 'user_management_screen.dart';
 import 'support_tickets_screen.dart';
 import 'content_moderation_screen.dart';
 import 'analytics_screen.dart';
+import 'system_management_screen.dart';
+import 'financial_management_screen.dart';
+import 'security_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -25,6 +28,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     const SupportTicketsScreen(),
     const ContentModerationScreen(),
     const AdminAnalyticsScreen(),
+    const SystemManagementScreen(),
+    const FinancialManagementScreen(),
+    const SecurityManagementScreen(),
   ];
 
   @override
@@ -175,6 +181,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: Icon(Icons.analytics_outlined),
                 selectedIcon: Icon(Icons.analytics),
                 label: Text('Analytics'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: Text('System'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.attach_money_outlined),
+                selectedIcon: Icon(Icons.attach_money),
+                label: Text('Finance'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.security_outlined),
+                selectedIcon: Icon(Icons.security),
+                label: Text('Security'),
               ),
             ],
           ),

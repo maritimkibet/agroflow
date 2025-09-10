@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/expense.dart';
 
 class ExpenseService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Add expense
@@ -23,21 +21,18 @@ class ExpenseService {
     Map<String, dynamic> metadata = const {},
   }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
+      // For demo purposes, create a mock user ID
+      const userId = 'demo_user_123';
 
-      // Upload images
+      // Mock image upload - just use local paths for demo
       List<String> imageUrls = [];
       for (int i = 0; i < images.length; i++) {
-        final ref = _storage.ref().child('expenses/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-        await ref.putFile(images[i]);
-        final url = await ref.getDownloadURL();
-        imageUrls.add(url);
+        imageUrls.add('local_image_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
       }
 
       final expense = Expense(
-        id: '',
-        userId: user.uid,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: userId,
         category: category,
         subcategory: subcategory,
         description: description,
@@ -51,8 +46,9 @@ class ExpenseService {
         createdAt: DateTime.now(),
       );
 
-      final docRef = await _firestore.collection('expenses').add(expense.toFirestore());
-      return docRef.id;
+      // For demo, simulate successful creation
+      await Future.delayed(const Duration(milliseconds: 500));
+      return expense.id;
     } catch (e) {
       throw Exception('Failed to add expense: $e');
     }
@@ -73,21 +69,18 @@ class ExpenseService {
     Map<String, dynamic> metadata = const {},
   }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
+      // For demo purposes, create a mock user ID
+      const userId = 'demo_user_123';
 
-      // Upload images
+      // Mock image upload - just use local paths for demo
       List<String> imageUrls = [];
       for (int i = 0; i < images.length; i++) {
-        final ref = _storage.ref().child('income/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-        await ref.putFile(images[i]);
-        final url = await ref.getDownloadURL();
-        imageUrls.add(url);
+        imageUrls.add('local_image_${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
       }
 
       final income = Income(
-        id: '',
-        userId: user.uid,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: userId,
         source: source,
         description: description,
         amount: amount,
@@ -102,8 +95,9 @@ class ExpenseService {
         createdAt: DateTime.now(),
       );
 
-      final docRef = await _firestore.collection('income').add(income.toFirestore());
-      return docRef.id;
+      // For demo, simulate successful creation
+      await Future.delayed(const Duration(milliseconds: 500));
+      return income.id;
     } catch (e) {
       throw Exception('Failed to add income: $e');
     }
@@ -116,30 +110,93 @@ class ExpenseService {
     String? category,
     String? cropType,
   }) {
-    final user = _auth.currentUser;
-    if (user == null) return Stream.value([]);
+    // Return mock data for presentation
+    return Stream.value(_getMockExpenses(startDate, endDate, category, cropType));
+  }
 
-    Query query = _firestore.collection('expenses')
-        .where('userId', isEqualTo: user.uid);
+  static List<Expense> _getMockExpenses(DateTime? startDate, DateTime? endDate, String? category, String? cropType) {
+    final now = DateTime.now();
+    final mockExpenses = [
+      Expense(
+        id: '1',
+        userId: 'demo_user_123',
+        category: 'Seeds & Planting',
+        subcategory: 'Seeds',
+        description: 'Tomato seeds for greenhouse',
+        amount: 150.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 5)),
+        cropType: 'Tomatoes',
+        season: 'Spring 2024',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 5)),
+      ),
+      Expense(
+        id: '2',
+        userId: 'demo_user_123',
+        category: 'Fertilizers & Nutrients',
+        subcategory: 'Organic Fertilizer',
+        description: 'Organic compost for soil preparation',
+        amount: 85.50,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 10)),
+        cropType: 'Lettuce',
+        season: 'Spring 2024',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 10)),
+      ),
+      Expense(
+        id: '3',
+        userId: 'demo_user_123',
+        category: 'Equipment & Tools',
+        subcategory: 'Irrigation Equipment',
+        description: 'Drip irrigation system upgrade',
+        amount: 320.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 15)),
+        cropType: 'Mixed Vegetables',
+        season: 'Spring 2024',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 15)),
+      ),
+      Expense(
+        id: '4',
+        userId: 'demo_user_123',
+        category: 'Labor',
+        subcategory: 'Planting Labor',
+        description: 'Seasonal workers for planting',
+        amount: 240.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 20)),
+        cropType: 'Corn',
+        season: 'Spring 2024',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 20)),
+      ),
+    ];
 
-    if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-    }
-    if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-    }
+    // Filter by date range
+    var filtered = mockExpenses.where((expense) {
+      if (startDate != null && expense.date.isBefore(startDate)) return false;
+      if (endDate != null && expense.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    // Filter by category
     if (category != null && category.isNotEmpty) {
-      query = query.where('category', isEqualTo: category);
+      filtered = filtered.where((expense) => expense.category == category).toList();
     }
+
+    // Filter by crop type
     if (cropType != null && cropType.isNotEmpty) {
-      query = query.where('cropType', isEqualTo: cropType);
+      filtered = filtered.where((expense) => expense.cropType == cropType).toList();
     }
 
-    query = query.orderBy('date', descending: true);
-
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Expense.fromFirestore(doc)).toList();
-    });
+    return filtered;
   }
 
   // Get income for a period
@@ -149,30 +206,97 @@ class ExpenseService {
     String? source,
     String? cropType,
   }) {
-    final user = _auth.currentUser;
-    if (user == null) return Stream.value([]);
+    // Return mock data for presentation
+    return Stream.value(_getMockIncome(startDate, endDate, source, cropType));
+  }
 
-    Query query = _firestore.collection('income')
-        .where('userId', isEqualTo: user.uid);
+  static List<Income> _getMockIncome(DateTime? startDate, DateTime? endDate, String? source, String? cropType) {
+    final now = DateTime.now();
+    final mockIncome = [
+      Income(
+        id: '1',
+        userId: 'demo_user_123',
+        source: 'Crop Sale',
+        description: 'Fresh tomatoes sold to local market',
+        amount: 450.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 3)),
+        cropType: 'Tomatoes',
+        quantity: 50.0,
+        unit: 'kg',
+        buyerInfo: 'Local Farmers Market',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 3)),
+      ),
+      Income(
+        id: '2',
+        userId: 'demo_user_123',
+        source: 'Crop Sale',
+        description: 'Organic lettuce harvest sale',
+        amount: 280.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 7)),
+        cropType: 'Lettuce',
+        quantity: 35.0,
+        unit: 'kg',
+        buyerInfo: 'Organic Food Store',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 7)),
+      ),
+      Income(
+        id: '3',
+        userId: 'demo_user_123',
+        source: 'Product Sale',
+        description: 'Processed tomato sauce sales',
+        amount: 180.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 12)),
+        cropType: 'Tomatoes',
+        quantity: 24.0,
+        unit: 'bottles',
+        buyerInfo: 'Direct to Consumer',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 12)),
+      ),
+      Income(
+        id: '4',
+        userId: 'demo_user_123',
+        source: 'Government Subsidy',
+        description: 'Organic farming incentive payment',
+        amount: 500.00,
+        currency: 'USD',
+        date: now.subtract(const Duration(days: 18)),
+        cropType: 'Mixed Vegetables',
+        quantity: null,
+        unit: null,
+        buyerInfo: 'Agricultural Department',
+        imageUrls: [],
+        metadata: {},
+        createdAt: now.subtract(const Duration(days: 18)),
+      ),
+    ];
 
-    if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-    }
-    if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-    }
+    // Filter by date range
+    var filtered = mockIncome.where((income) {
+      if (startDate != null && income.date.isBefore(startDate)) return false;
+      if (endDate != null && income.date.isAfter(endDate)) return false;
+      return true;
+    }).toList();
+
+    // Filter by source
     if (source != null && source.isNotEmpty) {
-      query = query.where('source', isEqualTo: source);
+      filtered = filtered.where((income) => income.source == source).toList();
     }
+
+    // Filter by crop type
     if (cropType != null && cropType.isNotEmpty) {
-      query = query.where('cropType', isEqualTo: cropType);
+      filtered = filtered.where((income) => income.cropType == cropType).toList();
     }
 
-    query = query.orderBy('date', descending: true);
-
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Income.fromFirestore(doc)).toList();
-    });
+    return filtered;
   }
 
   // Get financial summary for a period
@@ -182,38 +306,13 @@ class ExpenseService {
     String? cropType,
   }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      // Get expenses
-      Query expenseQuery = _firestore.collection('expenses')
-          .where('userId', isEqualTo: user.uid)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-
-      if (cropType != null && cropType.isNotEmpty) {
-        expenseQuery = expenseQuery.where('cropType', isEqualTo: cropType);
-      }
-
-      final expenseSnapshot = await expenseQuery.get();
-      final expenses = expenseSnapshot.docs.map((doc) => Expense.fromFirestore(doc)).toList();
-
-      // Get income
-      Query incomeQuery = _firestore.collection('income')
-          .where('userId', isEqualTo: user.uid)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
-
-      if (cropType != null && cropType.isNotEmpty) {
-        incomeQuery = incomeQuery.where('cropType', isEqualTo: cropType);
-      }
-
-      final incomeSnapshot = await incomeQuery.get();
-      final income = incomeSnapshot.docs.map((doc) => Income.fromFirestore(doc)).toList();
+      // Get mock data
+      final expenses = _getMockExpenses(startDate, endDate, null, cropType);
+      final income = _getMockIncome(startDate, endDate, null, cropType);
 
       // Calculate totals
-      final totalExpenses = expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
-      final totalIncome = income.fold<double>(0, (sum, inc) => sum + inc.amount);
+      final totalExpenses = expenses.fold<double>(0, (total, expense) => total + expense.amount);
+      final totalIncome = income.fold<double>(0, (total, inc) => total + inc.amount);
       final netProfit = totalIncome - totalExpenses;
       final profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0.0;
 

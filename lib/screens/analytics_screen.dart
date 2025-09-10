@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/growth_analytics_service.dart';
 import '../services/achievement_service.dart';
 import '../services/referral_service.dart';
+import '../services/hybrid_storage_service.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -14,9 +15,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   final GrowthAnalyticsService _analyticsService = GrowthAnalyticsService();
   final AchievementService _achievementService = AchievementService();
   final ReferralService _referralService = ReferralService();
+  final HybridStorageService _storageService = HybridStorageService();
 
   Map<String, int> _eventCounts = {};
   bool _isLoading = true;
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -25,11 +28,50 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _loadAnalytics() async {
-    final eventCounts = await _analyticsService.getEventCounts();
-    setState(() {
-      _eventCounts = eventCounts;
-      _isLoading = false;
-    });
+    try {
+      final eventCounts = await _analyticsService.getEventCounts();
+      if (mounted) {
+        setState(() {
+          _eventCounts = eventCounts;
+          _isLoading = false;
+          _isOffline = false;
+        });
+      }
+    } catch (e) {
+      // Load offline data
+      await _loadOfflineAnalytics();
+    }
+  }
+
+  Future<void> _loadOfflineAnalytics() async {
+    try {
+      // Get offline analytics from local storage
+      final tasks = _storageService.getAllTasks();
+      final completedTasks = tasks.where((task) => task.isCompleted).length;
+      
+      if (mounted) {
+        setState(() {
+          _eventCounts = {
+            'task_added': tasks.length,
+            'task_completed': completedTasks,
+            'product_listed': 0, // Would need to store this locally
+            'ai_assistant_used': 0,
+            'message_sent': 0,
+            'marketplace_viewed': 0,
+          };
+          _isLoading = false;
+          _isOffline = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _eventCounts = {};
+          _isLoading = false;
+          _isOffline = true;
+        });
+      }
+    }
   }
 
   @override
@@ -39,22 +81,63 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         title: const Text('Your AgroFlow Stats'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
+        actions: [
+          if (_isOffline)
+            IconButton(
+              icon: const Icon(Icons.cloud_off),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Offline mode - showing cached data'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildOverviewCards(),
-                  const SizedBox(height: 20),
-                  _buildActivityChart(),
-                  const SizedBox(height: 20),
-                  _buildAchievementProgress(),
-                  const SizedBox(height: 20),
-                  _buildReferralStats(),
-                ],
+          : RefreshIndicator(
+              onRefresh: _loadAnalytics,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isOffline)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.cloud_off, color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Offline Mode - Showing cached data',
+                                style: TextStyle(color: Colors.orange.shade700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    _buildOverviewCards(),
+                    const SizedBox(height: 20),
+                    _buildActivityChart(),
+                    const SizedBox(height: 20),
+                    _buildAchievementProgress(),
+                    const SizedBox(height: 20),
+                    _buildReferralStats(),
+                  ],
+                ),
               ),
             ),
     );

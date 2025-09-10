@@ -8,9 +8,9 @@ import '../services/error_handler_service.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class SplashScreen extends StatefulWidget {
-  final DatabaseReference databaseRef;
+  final DatabaseReference? databaseRef;
 
-  const SplashScreen({super.key, required this.databaseRef});
+  const SplashScreen({super.key, this.databaseRef});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -47,19 +47,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Log startup in background without blocking
       _logStartupInBackground();
       
-      // Determine next route while animation plays
-      final nextRoute = await _appStateService.getNextRoute();
-      
       // Ensure minimum splash time of 2 seconds for better UX
       await Future.delayed(const Duration(milliseconds: 2000));
       
       if (!mounted) return;
       
-      // Navigate to determined route
+      // Check app state to determine next route
+      final nextRoute = await _appStateService.getNextRoute();
       Navigator.pushReplacementNamed(context, nextRoute);
     } catch (e) {
       if (mounted) {
-        _errorHandler.handleError(context, e, 'splash_navigation');
         // Fallback to onboarding on error
         Navigator.pushReplacementNamed(context, '/onboarding');
       }
@@ -68,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   void _logStartupInBackground() {
     // Run Firebase logging in background without awaiting
-    widget.databaseRef.child('splashCheck').set({'status': 'App started'}).catchError((e) {
+    widget.databaseRef?.child('splashCheck').set({'status': 'App started'}).catchError((e) {
       // Firebase write failed - handled silently in production
     });
   }

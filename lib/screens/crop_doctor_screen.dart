@@ -328,44 +328,169 @@ class _CropDoctorScreenState extends State<CropDoctorScreen> with SingleTickerPr
   }
 
   Widget _buildPestTab() {
-    return const Center(
-      child: Text('Pest identification coming soon!'),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildPestCard(
+            'Aphids',
+            'Small, soft-bodied insects that feed on plant sap',
+            'Use ladybugs, neem oil, or insecticidal soap',
+            Icons.bug_report,
+            Colors.red,
+          ),
+          const SizedBox(height: 16),
+          _buildPestCard(
+            'Spider Mites',
+            'Tiny pests that cause yellowing and webbing on leaves',
+            'Increase humidity, use predatory mites, or miticide',
+            Icons.pest_control,
+            Colors.orange,
+          ),
+          const SizedBox(height: 16),
+          _buildPestCard(
+            'Whiteflies',
+            'Small white flying insects that damage leaves',
+            'Use yellow sticky traps, beneficial insects, or neem oil',
+            Icons.flutter_dash,
+            Colors.yellow,
+          ),
+          const SizedBox(height: 16),
+          _buildPestCard(
+            'Caterpillars',
+            'Larvae that eat leaves and can cause significant damage',
+            'Hand picking, Bt spray, or beneficial wasps',
+            Icons.bug_report,
+            Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPestCard(String name, String description, String treatment, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 32),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Treatment:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              treatment,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildHistoryTab() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _cropDoctorService.getDiagnosisHistory(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text('No diagnosis history yet'),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) {
-            final diagnosis = snapshot.data![index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const Icon(Icons.history, color: Colors.blue),
-                title: Text(diagnosis['diagnosis']['disease']),
-                subtitle: Text(
-                  DateTime.parse(diagnosis['timestamp']).toString().split('.')[0],
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _getMockHistory().length,
+      itemBuilder: (context, index) {
+        final diagnosis = _getMockHistory()[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Icon(
+              Icons.history, 
+              color: _getConfidenceColor(diagnosis['confidence']),
+            ),
+            title: Text(diagnosis['disease']),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(diagnosis['date']),
+                const SizedBox(height: 4),
+                Text(
+                  diagnosis['treatment'],
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
-                trailing: Text(
-                  '${(diagnosis['diagnosis']['confidence'] * 100).toInt()}%',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getConfidenceColor(diagnosis['confidence']).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${(diagnosis['confidence'] * 100).toInt()}%',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _getConfidenceColor(diagnosis['confidence']),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
+  }
+
+  List<Map<String, dynamic>> _getMockHistory() {
+    return [
+      {
+        'disease': 'Early Blight',
+        'confidence': 0.89,
+        'date': '2 days ago',
+        'treatment': 'Applied copper fungicide, removed affected leaves',
+      },
+      {
+        'disease': 'Powdery Mildew',
+        'confidence': 0.76,
+        'date': '1 week ago',
+        'treatment': 'Used neem oil spray, improved air circulation',
+      },
+      {
+        'disease': 'Leaf Spot',
+        'confidence': 0.82,
+        'date': '2 weeks ago',
+        'treatment': 'Organic treatment with baking soda solution',
+      },
+      {
+        'disease': 'Bacterial Wilt',
+        'confidence': 0.71,
+        'date': '3 weeks ago',
+        'treatment': 'Removed infected plants, improved drainage',
+      },
+    ];
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence > 0.8) return Colors.green;
+    if (confidence > 0.6) return Colors.orange;
+    return Colors.red;
   }
 
   Future<void> _takePhoto() async {

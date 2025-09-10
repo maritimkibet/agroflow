@@ -78,8 +78,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       // Save using hybrid storage (local + Firebase)
       await _storageService.saveUserProfile(user);
 
+      // Set as current user for immediate access
+      await _storageService.setCurrentUser(user);
+
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profile saved! Welcome ${user.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate to home and clear all previous routes
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     } catch (e) {
       if (mounted) {

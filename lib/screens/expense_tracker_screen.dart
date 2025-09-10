@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
+import '../services/currency_service.dart';
 import '../widgets/expense_widgets.dart';
 
 class ExpenseTrackerScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> with Ticker
   DateTime _selectedEndDate = DateTime.now();
   String _selectedCropType = '';
   List<String> _availableCropTypes = [];
-  bool _isLoading = false;
+  final CurrencyPreferenceService _currencyService = CurrencyPreferenceService();
 
   @override
   void initState() {
@@ -33,15 +34,15 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> with Ticker
   }
 
   Future<void> _loadCropTypes() async {
-    setState(() => _isLoading = true);
     try {
       final cropTypes = await ExpenseService.getCropTypesWithFinancialData();
-      setState(() {
-        _availableCropTypes = cropTypes;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _availableCropTypes = cropTypes;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint('Error loading crop types: $e');
     }
   }
 

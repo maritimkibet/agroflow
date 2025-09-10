@@ -8,7 +8,6 @@ import '../services/notification_service.dart';
 import '../services/achievement_service.dart';
 import '../services/growth_analytics_service.dart';
 import '../widgets/achievement_notification.dart';
-import 'onboarding_screen.dart';
 
 class AddTaskScreen extends StatefulWidget {
   final HybridStorageService storageService;
@@ -33,6 +32,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   DateTime? _selectedDate;
   bool _isCompleted = false;
   String? _selectedTaskType;
+  String? _selectedPriority;
 
   @override
   void initState() {
@@ -158,7 +158,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       taskDescription: _taskDescriptionController.text.trim(),
       date: _selectedDate!,
       isCompleted: _isCompleted,
-      notes: _selectedTaskType,
+      taskType: _selectedTaskType,
+      priority: _selectedPriority ?? 'Medium',
     );
 
     await widget.storageService.addOrUpdateTask(newTask);
@@ -183,28 +184,26 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ),
       );
 
-      // Navigate back to tasks screen (home screen with tasks tab)
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // Simply go back to the previous screen (which should be the tasks screen)
+      Navigator.of(context).pop();
     }
   }
 
-  Future<void> _confirmNavigateToOnboarding() async {
+  Future<void> _confirmRoleSwitch() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm'),
-        content: const Text('Do you want to go back to the onboarding screen? Unsaved changes will be lost.'),
+        title: const Text('Switch Role'),
+        content: const Text('Do you want to switch your role? This will change your app experience.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch Role')),
         ],
       ),
     );
-    if (confirmed == true) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        (route) => false,
-      );
+    if (confirmed == true && mounted) {
+      // Navigate to profile setup to change role
+      Navigator.pushNamed(context, '/profile_setup');
     }
   }
 
@@ -282,6 +281,23 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       val == null ? 'Please select a task type' : null,
                 ),
                 const SizedBox(height: 20),
+                
+                // Priority Selection
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Priority',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.priority_high),
+                  ),
+                  initialValue: _selectedPriority,
+                  items: const [
+                    DropdownMenuItem(value: 'Low', child: Text('🟢 Low Priority')),
+                    DropdownMenuItem(value: 'Medium', child: Text('🟡 Medium Priority')),
+                    DropdownMenuItem(value: 'High', child: Text('🔴 High Priority')),
+                  ],
+                  onChanged: (val) => setState(() => _selectedPriority = val),
+                ),
+                const SizedBox(height: 20),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.calendar_today),
@@ -305,7 +321,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   margin: const EdgeInsets.only(bottom: 20),
                   child: ElevatedButton(
                     onPressed: _saveTask,
-                    onLongPress: _confirmNavigateToOnboarding,
+                    onLongPress: _confirmRoleSwitch,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade800,
                       foregroundColor: Colors.white,
