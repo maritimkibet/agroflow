@@ -12,6 +12,38 @@ class HiveService {
   static const String cropDataBoxName = 'crop_data';
   static const String settingsBoxName = 'settings';
 
+  // Initialize Hive and register adapters
+  Future<void> initializeHive() async {
+    try {
+      // Register type adapters if not already registered
+      if (!Hive.isAdapterRegistered(0)) {
+        Hive.registerAdapter(CropTaskAdapter());
+      }
+      if (!Hive.isAdapterRegistered(1)) {
+        Hive.registerAdapter(UserAdapter());
+      }
+      if (!Hive.isAdapterRegistered(2)) {
+        Hive.registerAdapter(UserRoleAdapter());
+      }
+      if (!Hive.isAdapterRegistered(3)) {
+        Hive.registerAdapter(ProductAdapter());
+      }
+      if (!Hive.isAdapterRegistered(6)) {
+        Hive.registerAdapter(CropDataAdapter());
+      }
+
+      // Open boxes
+      await Hive.openBox<CropTask>(taskBoxName);
+      await Hive.openBox<User>(userBoxName);
+      await Hive.openBox<Product>(productBoxName);
+      await Hive.openBox<CropData>(cropDataBoxName);
+      await Hive.openBox(settingsBoxName);
+    } catch (e) {
+      // If boxes are already open, continue
+      print('Hive initialization warning: $e');
+    }
+  }
+
   // Hive boxes
   Box<CropTask> get taskBox => Hive.box<CropTask>(taskBoxName);
   Box<User> get userBox => Hive.box<User>(userBoxName);
@@ -52,8 +84,30 @@ class HiveService {
   }
 
   User? getCurrentUser() {
+    final currentUserId = settingsBox.get('current_user_id');
+    if (currentUserId != null) {
+      return userBox.get(currentUserId);
+    }
+    return null;
+  }
+
+  Future<void> setCurrentUser(User user) async {
+    await settingsBox.put('current_user_id', user.id);
+  }
+
+  Future<User?> getUserByEmail(String email) async {
     final users = userBox.values.toList();
-    return users.isNotEmpty ? users.first : null;
+    try {
+      return users.firstWhere(
+        (user) => user.email?.toLowerCase() == email.toLowerCase(),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> logout() async {
+    await settingsBox.delete('current_user_id');
   }
 
   List<String> getAllCrops() {
@@ -135,5 +189,44 @@ class HiveService {
 
   void init() {}
 
-  // Clean up - removed duplicate/placeholder methods
+  // ========== Generic Data Methods ==========
+  Future<void> saveData(String key, dynamic value) async {
+    await settingsBox.put(key, value);
+  }
+
+  Future<dynamic> getData(String key) async {
+    return settingsBox.get(key);
+  }
+
+  Future<void> removeData(String key) async {
+    await settingsBox.delete(key);
+  }
+
+  // ========== Data Management Methods ==========
+  
+  /// Clear all user data (for logout or role reset)
+  Future<void> clearAllData() async {
+    await taskBox.clear();
+    await userBox.clear();
+    await productBox.clear();
+    await settingsBox.clear();
+  }
+
+  /// Clear only user-specific data (keep products for marketplace)
+  Future<void> clearUserData() async {
+    await taskBox.clear();
+    await userBox.clear();
+    await settingsBox.delete('current_user_id');
+  }
+
+  /// Get storage statistics
+  Map<String, int> getStorageStats() {
+    return {
+      'tasks': taskBox.length,
+      'users': userBox.length,
+      'products': productBox.length,
+      'cropData': cropDataBox.length,
+      'settings': settingsBox.length,
+    };
+  }
 }

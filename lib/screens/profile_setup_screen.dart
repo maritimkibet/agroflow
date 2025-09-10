@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/user.dart' as app_user;
 import '../services/hybrid_storage_service.dart';
-import '../screens/onboarding_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -15,6 +14,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _countyController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   
   app_user.UserRole _selectedRole = app_user.UserRole.farmer;
   bool _isLoading = false;
@@ -70,16 +71,27 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         name: _nameController.text.trim(),
         role: _selectedRole,
         location: '${_countyController.text.trim()}, ${_currentLocation ?? 'Unknown'}',
+        phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        email: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
       );
 
       // Save using hybrid storage (local + Firebase)
       await _storageService.saveUserProfile(user);
 
+      // Set as current user for immediate access
+      await _storageService.setCurrentUser(user);
+
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profile saved! Welcome ${user.name}'),
+            backgroundColor: Colors.green,
+          ),
         );
+        
+        // Navigate to home and clear all previous routes
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     } catch (e) {
       if (mounted) {
@@ -153,6 +165,54 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Phone Field
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'e.g., +254712345678',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your phone number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Email Field
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address (Optional)',
+                    prefixIcon: const Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'your.email@example.com',
+                  ),
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty) {
+                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) {
+                        return 'Please enter a valid email address';
+                      }
                     }
                     return null;
                   },
@@ -316,6 +376,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void dispose() {
     _nameController.dispose();
     _countyController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 }

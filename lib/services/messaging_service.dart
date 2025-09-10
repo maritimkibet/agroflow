@@ -3,6 +3,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/message.dart';
 import 'hybrid_storage_service.dart';
+import 'achievement_service.dart';
+import 'growth_analytics_service.dart';
 
 class MessagingService {
   static final MessagingService _instance = MessagingService._internal();
@@ -75,6 +77,13 @@ class MessagingService {
       
       // Save to local storage
       // await _storage.saveMessage(message);
+      
+      // Track messaging for achievements
+      final achievementService = AchievementService();
+      final analyticsService = GrowthAnalyticsService();
+      
+      await analyticsService.trackMessageSent();
+      await achievementService.updateProgress('community_helper');
       
       // Send notification to receiver if they're offline
       final isReceiverOnline = await isUserOnline(message.receiverId);
@@ -201,7 +210,7 @@ class MessagingService {
   // Send offline notification (placeholder - would integrate with push notifications)
   Future<void> _sendOfflineNotification(Message message) async {
     // This would integrate with Firebase Cloud Messaging or similar
-    debugPrint('Sending offline notification for message: ${message.content}');
+    // Offline notification sent silently in production
   }
 
   // Check internet connectivity

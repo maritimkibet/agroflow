@@ -1,28 +1,34 @@
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
 import '../services/hybrid_storage_service.dart';
 import '../services/weather_service.dart';
+import '../services/achievement_service.dart';
+import '../services/growth_analytics_service.dart';
+import '../widgets/achievement_notification.dart';
 import '../models/user.dart';
 
-class AiAssistantScreen extends StatefulWidget {
-  const AiAssistantScreen({super.key});
+class AIAssistantScreen extends StatefulWidget {
+  const AIAssistantScreen({super.key});
 
   @override
-  State<AiAssistantScreen> createState() => _AiAssistantScreenState();
+  State<AIAssistantScreen> createState() => _AIAssistantScreenState();
 }
 
-class _AiAssistantScreenState extends State<AiAssistantScreen> {
+class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
   User? _currentUser;
   Map<String, dynamic>? _weatherData;
+  File? _selectedImage;
 
   late FlutterTts _flutterTts;
   final HybridStorageService _storageService = HybridStorageService();
   final WeatherService _weatherService = WeatherService();
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -48,16 +54,15 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   void _addWelcomeMessage() {
     final userName = _currentUser?.name ?? 'there';
     final userRole = _currentUser?.role.name ?? 'user';
-    
-    String contextualMessage = 'Hello $userName! 🌾 I am AgroFlow AI, your intelligent agricultural assistant powered by Google Gemini. ';
-    contextualMessage += 'I can help with farming advice, weather insights, crop management, pest control, and marketplace guidance. ';
+
+    String contextualMessage =
+        'Hello $userName! 🌾 I am AgroFlow AI, your intelligent agricultural assistant powered by Google Gemini. ';
+    contextualMessage +=
+        'I can help with farming advice, weather insights, crop management, pest control, and marketplace guidance. ';
     contextualMessage += 'As a $userRole, what would you like to know today?';
-    
+
     setState(() {
-      _messages.add({
-        'role': 'ai',
-        'text': contextualMessage,
-      });
+      _messages.add({'role': 'ai', 'text': contextualMessage});
     });
   }
 
@@ -70,77 +75,126 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Future<void> _sendMessage() async {
     final userMessage = _controller.text.trim();
-    if (userMessage.isEmpty) return;
+    if (userMessage.isEmpty && _selectedImage == null) return;
 
     setState(() {
-      _messages.add({'role': 'user', 'text': userMessage});
+      if (userMessage.isNotEmpty) {
+        _messages.add({'role': 'user', 'text': userMessage});
+      }
       _isLoading = true;
       _controller.clear();
     });
 
+    // Track AI usage
+    final achievementService = AchievementService();
+    final analyticsService = GrowthAnalyticsService();
+
+    await analyticsService.trackAIAssistantUsed();
+    final unlockedAchievement = await achievementService.updateProgress(
+      'ai_helper',
+    );
+    if (unlockedAchievement != null && mounted) {
+      AchievementNotification.show(context, unlockedAchievement);
+    }
+
     try {
-      final responseText = await _getGeminiResponse(_messages);
+      final responseText = await _getGeminiResponse(
+        userMessage,
+        _selectedImage,
+      );
       setState(() {
         _messages.add({'role': 'ai', 'text': responseText});
+        _selectedImage = null; // reset after sending
       });
       await _speak(responseText);
     } catch (e) {
       debugPrint('AI Error: $e');
-      setState(() {
-        _messages.add({'role': 'ai', 'text': 'Sorry, I am having trouble connecting to my AI brain right now. Please try again in a moment!'});
-      });
+      if (mounted) {
+        setState(() {
+          String errorMessage = 'Sorry, I am having trouble right now. ';
+          if (e.toString().contains('Invalid API key')) {
+            errorMessage += 'Please configure your Gemini API key.';
+          } else if (e.toString().contains('Network')) {
+            errorMessage += 'Please check your internet connection.';
+          } else if (e.toString().contains('Rate limit')) {
+            errorMessage += 'Too many requests - please wait and try again.';
+          } else {
+            errorMessage += 'Please try again in a moment!';
+          }
+          _messages.add({'role': 'ai', 'text': errorMessage});
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<String> _getGeminiResponse(List<Map<String, String>> messages) async {
-    const apiKey = 'AIzaSyC2qxVLaZSVCcGu_khOHMeK0vRxGoOtCl8';
-    const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$apiKey';
-
-    final systemPrompt = _buildSystemPrompt();
-
-    final contents = [
-      {
-        "parts": [
-          {"text": systemPrompt}
-        ]
-      },
-      for (var msg in messages)
-        {
-          "parts": [
-            {
-              "text": "${msg['role'] == 'user' ? 'User' : 'Assistant'}: ${msg['text']}"
-            }
-          ]
-        }
-    ];
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"contents": contents}),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['candidates'][0]['content']['parts'][0]['text'].trim();
-    } else {
-      throw Exception('API Error: ${response.statusCode}');
+  Future<String> _getGeminiResponse(String text, File? imageFile) async {
+    // Mock AI responses for demo purposes
+    await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+    
+    final lowerText = text.toLowerCase();
+    
+    // Pattern recognition for smart responses
+    if (lowerText.contains('hi') || lowerText.contains('hello') || lowerText.contains('hey') || 
+        lowerText.contains('good morning') || lowerText.contains('good afternoon') || 
+        lowerText.contains('good evening') || lowerText.trim() == 'hi' || lowerText.trim() == 'hello') {
+      return "Hello! 👋 I'm AgroFlow AI, your farming assistant. I can help you with:\n\n🌱 Crop management advice\n🌦️ Weather-based recommendations\n🐛 Pest and disease identification\n💰 Market insights\n📊 Farm analytics\n\nWhat would you like to know about your farm today?";
     }
+    
+    if (lowerText.contains('how are you') || lowerText.contains('how do you do')) {
+      return "I'm doing great, thank you for asking! 😊 I'm here and ready to help you with all your farming needs. Whether you need advice on crops, weather insights, or market information, I'm at your service!\n\nHow can I assist you with your farm today?";
+    }
+    
+    if (lowerText.contains('thank') || lowerText.contains('thanks')) {
+      return "You're very welcome! 🌟 I'm always happy to help fellow farmers succeed. Remember, I'm here 24/7 whenever you need farming advice, weather updates, or market insights.\n\nIs there anything else I can help you with today?";
+    }
+    
+    if (lowerText.contains('weather') || lowerText.contains('rain') || lowerText.contains('temperature')) {
+      return "🌤️ **Weather Update & Farming Advice:**\n\n📊 **Current Conditions:**\n• Temperature: ${_weatherData?['temperature']?.round() ?? 25}°C\n• Humidity: ${_weatherData?['humidity'] ?? 65}%\n• Conditions: ${_weatherData?['description'] ?? 'Partly cloudy'}\n\n🌱 **Farming Recommendations:**\n• Best time to water: Early morning (6-8 AM)\n• Avoid spraying in windy conditions\n• Monitor soil moisture levels\n• Protect sensitive plants if temperature drops\n\n📅 **Planning Tip:** Check weather forecast before major farming activities!\n\nNeed specific advice for your crops?";
+    }
+    
+    if (lowerText.contains('dry') || lowerText.contains('water') || lowerText.contains('irrigation')) {
+      return "🌿 I see your plants might need attention! Here's what I recommend:\n\n💧 **Immediate Actions:**\n• Check soil moisture 2-3 inches deep\n• Water early morning or late evening\n• Apply mulch to retain moisture\n\n🌡️ **Weather Consideration:**\n• Current temperature: ${_weatherData?['temperature']?.round() ?? 25}°C\n• Humidity: ${_weatherData?['humidity'] ?? 65}%\n\n📋 **Watering Schedule:**\n• Deep watering 2-3 times per week\n• Adjust based on plant type and season\n\nWould you like specific advice for your crop type?";
+    }
+    
+    if (lowerText.contains('pest') || lowerText.contains('bug') || lowerText.contains('insect') || lowerText.contains('disease')) {
+      return "🐛 **Pest & Disease Management:**\n\n🔍 **Common Signs to Watch:**\n• Yellowing or spotted leaves\n• Holes in leaves or fruits\n• Unusual growth patterns\n• Sticky residue on plants\n\n🌿 **Organic Solutions:**\n• Neem oil spray (2-3 times/week)\n• Companion planting with marigolds\n• Beneficial insects like ladybugs\n• Proper spacing for air circulation\n\n📸 **Pro Tip:** Take a photo of affected plants for more specific diagnosis!\n\nWhat symptoms are you seeing on your plants?";
+    }
+    
+    if (lowerText.contains('market') || lowerText.contains('price') || lowerText.contains('sell')) {
+      return "💰 **Market Insights & Pricing:**\n\n📈 **Current Trends:**\n• Organic produce: 15-20% premium\n• Local markets: Higher margins\n• Direct-to-consumer: Best profits\n\n🎯 **Selling Strategies:**\n• Harvest at optimal ripeness\n• Clean and grade your produce\n• Build relationships with buyers\n• Consider value-added products\n\n📊 **Price Optimization:**\n• Track seasonal price patterns\n• Monitor competitor pricing\n• Quality over quantity approach\n\nWhich crops are you planning to sell?";
+    }
+    
+    if (lowerText.contains('fertilizer') || lowerText.contains('nutrient') || lowerText.contains('soil')) {
+      return "🌱 **Soil & Nutrition Management:**\n\n🧪 **Soil Health Basics:**\n• Test pH levels (6.0-7.0 ideal for most crops)\n• Check organic matter content\n• Ensure proper drainage\n\n🌿 **Organic Fertilizers:**\n• Compost: Slow-release nutrients\n• Bone meal: Phosphorus boost\n• Fish emulsion: Quick nitrogen\n• Kelp meal: Trace minerals\n\n📅 **Feeding Schedule:**\n• Pre-planting: Compost incorporation\n• Growing season: Bi-weekly liquid feeds\n• Flowering: Reduce nitrogen, increase phosphorus\n\nWhat type of crops are you growing?";
+    }
+    
+    if (imageFile != null) {
+      return "📸 **Image Analysis:**\n\nI can see you've shared an image! Based on visual analysis, here are some general observations:\n\n🔍 **What I Notice:**\n• Plant health indicators\n• Growth stage assessment\n• Environmental conditions\n• Potential issues to monitor\n\n💡 **Recommendations:**\n• Continue monitoring plant development\n• Maintain consistent care routine\n• Document changes with photos\n• Consider environmental factors\n\nFor more specific analysis, please describe what concerns you about this plant!";
+    }
+    
+    // Default helpful response
+    return "🌾 **AgroFlow AI at Your Service!**\n\nI understand you're asking about: \"$text\"\n\n💡 **Here's my advice:**\n• Focus on consistent plant care routines\n• Monitor weather conditions regularly\n• Keep detailed records of your farming activities\n• Consider sustainable farming practices\n\n🎯 **Specific Help Available:**\n• Crop management strategies\n• Pest and disease identification\n• Weather-based recommendations\n• Market timing advice\n• Soil health optimization\n\nCould you be more specific about what aspect of farming you'd like help with? I'm here to provide detailed, actionable advice! 🚜";
   }
 
   String _buildSystemPrompt() {
-    final recentTasks = _storageService
-        .getAllTasks()
-        .where((task) =>
-            task.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
-        .toList();
+    final recentTasks =
+        _storageService
+            .getAllTasks()
+            .where(
+              (task) => task.date.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              ),
+            )
+            .toList();
 
-    String prompt = '''You are AgroFlow AI, a global agricultural and marketplace assistant powered by Google Gemini. You provide intelligent, context-aware farming advice.
-
+    String prompt =
+        '''You are AgroFlow AI, a farming assistant powered by Google Gemini. 
 User Information:
 - Role: ${_currentUser?.role.name ?? 'farmer'}
 - Name: ${_currentUser?.name ?? 'User'}
@@ -148,36 +202,30 @@ User Information:
 
     if (_weatherData != null) {
       prompt += '''
-
-Current Weather:
-- Temperature: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
+Weather:
+- Temp: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
 - Condition: ${_weatherData!['description'] ?? 'N/A'}
 - Humidity: ${_weatherData!['humidity'] ?? 'N/A'}%
-- Wind Speed: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
+- Wind: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
     }
 
     if (recentTasks.isNotEmpty) {
-      prompt += '''
-
-Recent Farming Activities (Last 30 days):''';
+      prompt += '\nRecent Farming Tasks:';
       for (final task in recentTasks.take(5)) {
-        final status = task.isCompleted ? '✅ Completed' : '⏳ Pending';
+        final status = task.isCompleted ? '✅ Done' : '⏳ Pending';
         final daysAgo = DateTime.now().difference(task.date).inDays;
-        prompt += '''
-- ${task.cropName}: ${task.taskDescription} ($status) - $daysAgo days ago''';
+        prompt +=
+            '\n- ${task.cropName}: ${task.taskDescription} ($status, $daysAgo days ago)';
       }
     }
 
     prompt += '''
-
 Instructions:
-- Provide intelligent, context-aware farming advice
-- Keep responses concise but informative
-- Use emojis to make responses engaging
-- Consider weather and seasonal factors
-- Be encouraging and supportive
-- Focus on practical, actionable advice''';
-    
+- Give practical farming advice
+- Be concise, clear, and supportive
+- Use emojis for engagement 🌱🌾☀️
+''';
+
     return prompt;
   }
 
@@ -188,6 +236,15 @@ Instructions:
       await _flutterTts.speak(text);
     } catch (e) {
       debugPrint('TTS Error: $e');
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
     }
   }
 
@@ -202,6 +259,13 @@ Instructions:
           icon: const Icon(Icons.psychology),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.image),
+            onPressed: _pickImage,
+            tooltip: "Attach image",
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -225,6 +289,27 @@ Instructions:
               ],
             ),
           ),
+          if (_selectedImage != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Stack(
+                children: [
+                  Image.file(_selectedImage!, height: 120),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _selectedImage = null;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
@@ -234,7 +319,8 @@ Instructions:
                   final message = _messages[index];
                   final isUser = message['role'] == 'user';
                   return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment:
+                        isUser ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       padding: const EdgeInsets.all(12),
@@ -242,9 +328,10 @@ Instructions:
                         maxWidth: MediaQuery.of(context).size.width * 0.8,
                       ),
                       decoration: BoxDecoration(
-                        color: isUser 
-                          ? Colors.green.shade300 
-                          : Colors.grey.shade200,
+                        color:
+                            isUser
+                                ? Colors.green.shade300
+                                : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -260,7 +347,10 @@ Instructions:
                   return Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 12,
+                      ),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,

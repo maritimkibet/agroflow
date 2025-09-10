@@ -146,8 +146,18 @@ class HybridStorageService {
 
   /// Check if device is online
   Future<bool> _isOnline() async {
-    final connectivityResults = await _connectivity.checkConnectivity();
-    return !connectivityResults.contains(ConnectivityResult.none);
+    try {
+      final connectivityResults = await _connectivity.checkConnectivity();
+      // For web, connectivity plugin may not work properly, so assume online
+      if (connectivityResults.contains(ConnectivityResult.none)) {
+        return false;
+      }
+      // Additional check for web - try a simple network request
+      return true;
+    } catch (e) {
+      // If connectivity check fails, assume online for web
+      return true;
+    }
   }
 
   /// Mark item for sync when online
@@ -269,5 +279,38 @@ class HybridStorageService {
       'pendingItems': syncBox.length,
       'lastSyncAttempt': DateTime.now(),
     };
+  }
+
+  /// Switch user role and maintain data
+  Future<void> switchUserRole(UserRole newRole) async {
+    final currentUser = getCurrentUser();
+    if (currentUser != null) {
+      currentUser.role = newRole;
+      await saveUserProfile(currentUser);
+      await setCurrentUser(currentUser);
+    }
+  }
+
+  /// Set current user
+  Future<void> setCurrentUser(User user) async {
+    await _hiveService.setCurrentUser(user);
+  }
+
+  /// Clear all user data (for logout or role reset)
+  Future<void> clearUserData() async {
+    await _hiveService.clearUserData();
+    
+    // Clear sync queue
+    final syncBox = await Hive.openBox('sync_queue');
+    await syncBox.clear();
+  }
+
+  /// Clear all data including products (complete reset)
+  Future<void> clearAllData() async {
+    await _hiveService.clearAllData();
+    
+    // Clear sync queue
+    final syncBox = await Hive.openBox('sync_queue');
+    await syncBox.clear();
   }
 }
