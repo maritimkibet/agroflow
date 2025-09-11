@@ -72,3 +72,6 @@ lib/config/secrets.dart
 build/debug-info/
 
 # GitHub Actions will create dummy versions for CI builds
+
+# Keep Kiro AI development files for hackathon submission
+# .kiro/ directory should NOT be ignored - it contains specs, hooks, and steering files
