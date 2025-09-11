@@ -182,52 +182,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     return "🌾 **AgroFlow AI at Your Service!**\n\nI understand you're asking about: \"$text\"\n\n💡 **Here's my advice:**\n• Focus on consistent plant care routines\n• Monitor weather conditions regularly\n• Keep detailed records of your farming activities\n• Consider sustainable farming practices\n\n🎯 **Specific Help Available:**\n• Crop management strategies\n• Pest and disease identification\n• Weather-based recommendations\n• Market timing advice\n• Soil health optimization\n\nCould you be more specific about what aspect of farming you'd like help with? I'm here to provide detailed, actionable advice! 🚜";
   }
 
-  String _buildSystemPrompt() {
-    final recentTasks =
-        _storageService
-            .getAllTasks()
-            .where(
-              (task) => task.date.isAfter(
-                DateTime.now().subtract(const Duration(days: 30)),
-              ),
-            )
-            .toList();
 
-    String prompt =
-        '''You are AgroFlow AI, a farming assistant powered by Google Gemini. 
-User Information:
-- Role: ${_currentUser?.role.name ?? 'farmer'}
-- Name: ${_currentUser?.name ?? 'User'}
-- Location: ${_currentUser?.location ?? 'Unknown location'}''';
-
-    if (_weatherData != null) {
-      prompt += '''
-Weather:
-- Temp: ${_weatherData!['temperature']?.round() ?? 'N/A'}°C
-- Condition: ${_weatherData!['description'] ?? 'N/A'}
-- Humidity: ${_weatherData!['humidity'] ?? 'N/A'}%
-- Wind: ${_weatherData!['windSpeed'] ?? 'N/A'} m/s''';
-    }
-
-    if (recentTasks.isNotEmpty) {
-      prompt += '\nRecent Farming Tasks:';
-      for (final task in recentTasks.take(5)) {
-        final status = task.isCompleted ? '✅ Done' : '⏳ Pending';
-        final daysAgo = DateTime.now().difference(task.date).inDays;
-        prompt +=
-            '\n- ${task.cropName}: ${task.taskDescription} ($status, $daysAgo days ago)';
-      }
-    }
-
-    prompt += '''
-Instructions:
-- Give practical farming advice
-- Be concise, clear, and supportive
-- Use emojis for engagement 🌱🌾☀️
-''';
-
-    return prompt;
-  }
 
   Future _speak(String text) async {
     try {

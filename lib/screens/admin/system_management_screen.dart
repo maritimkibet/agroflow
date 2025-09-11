@@ -21,8 +21,8 @@ class _SystemManagementScreenState extends State<SystemManagementScreen> {
     setState(() => _isLoading = true);
     try {
       final adminService = AdminService();
-      final systemHealth = await adminService.getSystemHealth();
-      final analytics = await adminService.getAppAnalytics();
+      await adminService.getSystemHealth();
+      await adminService.getAppAnalytics();
       
       setState(() {
         _isLoading = false;
@@ -185,8 +185,10 @@ class _SystemManagementScreenState extends State<SystemManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Creating database backup...');
       await Future.delayed(const Duration(seconds: 3));
-      Navigator.pop(context);
-      _showSuccessDialog('Database backup completed successfully!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('Database backup completed successfully!');
+      }
     }
   }
 
@@ -199,8 +201,10 @@ class _SystemManagementScreenState extends State<SystemManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Clearing system cache...');
       await Future.delayed(const Duration(seconds: 2));
-      Navigator.pop(context);
-      _showSuccessDialog('System cache cleared successfully!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('System cache cleared successfully!');
+      }
     }
   }
 
@@ -213,30 +217,38 @@ class _SystemManagementScreenState extends State<SystemManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Restarting system...');
       await Future.delayed(const Duration(seconds: 5));
-      Navigator.pop(context);
-      _showSuccessDialog('System restart initiated successfully!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('System restart initiated successfully!');
+      }
     }
   }
 
   Future<void> _updateConfigurations() async {
     _showLoadingDialog('Updating configurations...');
     await Future.delayed(const Duration(seconds: 2));
-    Navigator.pop(context);
-    _showSuccessDialog('Configurations updated successfully!');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Configurations updated successfully!');
+    }
   }
 
   Future<void> _performSecurityScan() async {
     _showLoadingDialog('Performing security scan...');
     await Future.delayed(const Duration(seconds: 4));
-    Navigator.pop(context);
-    _showSuccessDialog('Security scan completed. No threats detected.');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Security scan completed. No threats detected.');
+    }
   }
 
   Future<void> _performanceCheck() async {
     _showLoadingDialog('Running performance check...');
     await Future.delayed(const Duration(seconds: 3));
-    Navigator.pop(context);
-    _showSuccessDialog('Performance check completed. System running optimally.');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Performance check completed. System running optimally.');
+    }
   }
 
   Future<bool> _showConfirmationDialog(String title, String message) async {

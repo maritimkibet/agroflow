@@ -425,14 +425,19 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
             onPressed: () async {
               try {
                 await CommunityService.reportPost(widget.post.id, 'Inappropriate content');
+                if (!context.mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Post reported successfully')),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Post reported successfully')),
+                  );
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error reporting post: $e')),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error reporting post: $e')),
+                  );
+                }
               }
             },
             child: const Text('Report'),

@@ -419,17 +419,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 reasonController.text.trim(),
               );
               
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('User suspended successfully')),
-                  );
-                  _loadUsers();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to suspend user')),
-                  );
-                }
+              if (!context.mounted) return;
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('User suspended successfully')),
+                );
+                _loadUsers();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to suspend user')),
+                );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

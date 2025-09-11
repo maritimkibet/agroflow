@@ -443,15 +443,19 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
   Future<void> _runSecurityScan() async {
     _showLoadingDialog('Running comprehensive security scan...');
     await Future.delayed(const Duration(seconds: 4));
-    Navigator.pop(context);
-    _showSuccessDialog('Security scan completed. No vulnerabilities found.');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Security scan completed. No vulnerabilities found.');
+    }
   }
 
   Future<void> _updateFirewallRules() async {
     _showLoadingDialog('Updating firewall rules...');
     await Future.delayed(const Duration(seconds: 2));
-    Navigator.pop(context);
-    _showSuccessDialog('Firewall rules updated successfully!');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Firewall rules updated successfully!');
+    }
   }
 
   Future<void> _forcePasswordReset() async {
@@ -463,8 +467,10 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Initiating password reset for all users...');
       await Future.delayed(const Duration(seconds: 3));
-      Navigator.pop(context);
-      _showSuccessDialog('Password reset initiated for all users!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('Password reset initiated for all users!');
+      }
     }
   }
 
@@ -477,8 +483,10 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Enabling 2FA for all users...');
       await Future.delayed(const Duration(seconds: 2));
-      Navigator.pop(context);
-      _showSuccessDialog('2FA requirement enabled for all users!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('2FA requirement enabled for all users!');
+      }
     }
   }
 

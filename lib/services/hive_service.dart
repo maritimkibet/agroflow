@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/crop_task.dart';
 import '../models/user.dart';
@@ -40,7 +41,7 @@ class HiveService {
       await Hive.openBox(settingsBoxName);
     } catch (e) {
       // If boxes are already open, continue
-      print('Hive initialization warning: $e');
+      debugPrint('Hive initialization warning: $e');
     }
   }
 

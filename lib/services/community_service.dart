@@ -32,9 +32,8 @@ class CommunityService {
       }
 
       // Mock video URL if provided
-      String? videoUrl;
       if (video != null) {
-        videoUrl = 'demo_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+        // Video processing would happen here
       }
 
       // Create mock post ID

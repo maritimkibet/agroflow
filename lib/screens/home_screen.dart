@@ -574,6 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 });
                 await _storageService.addOrUpdateTask(task);
                 
+                if (!context.mounted) return;
                 // Show completion feedback
                 if (task.isCompleted) {
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -537,9 +537,11 @@ class _SearchPostsDialogState extends State<SearchPostsDialog> {
       });
     } catch (e) {
       setState(() => _isSearching = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search error: $e')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search error: $e')),
+        );
+      }
     }
   }
 }

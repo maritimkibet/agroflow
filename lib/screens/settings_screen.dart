@@ -26,7 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final CurrencyPreferenceService _currencyService = CurrencyPreferenceService();
 
   User? _currentUser;
-  Currency? _currentCurrency;
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();

@@ -305,13 +305,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
-    }
-  }
+
 
   Widget _buildProductImage(BuildContext context) {
     if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {

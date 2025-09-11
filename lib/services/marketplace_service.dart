@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
 import 'hive_service.dart';
@@ -8,8 +7,6 @@ class MarketplaceService {
   static final MarketplaceService _instance = MarketplaceService._internal();
   factory MarketplaceService() => _instance;
   MarketplaceService._internal();
-
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Mock products for presentation
   static List<Product> _getMockProducts() {

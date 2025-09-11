@@ -248,21 +248,20 @@ class _ContentModerationScreenState extends State<ContentModerationScreen> {
                 reasonController.text.trim(),
               );
               
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Product ${approve ? 'approved' : 'rejected'} successfully'),
-                    ),
-                  );
-                  _loadFlaggedContent();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Failed to moderate product'),
-                    ),
-                  );
-                }
+              if (!context.mounted) return;
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Product ${approve ? 'approved' : 'rejected'} successfully'),
+                  ),
+                );
+                _loadFlaggedContent();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to moderate product'),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(

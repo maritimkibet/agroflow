@@ -54,9 +54,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       
       // Check app state to determine next route
       final nextRoute = await _appStateService.getNextRoute();
-      Navigator.pushReplacementNamed(context, nextRoute);
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, nextRoute);
+      }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         // Fallback to onboarding on error
         Navigator.pushReplacementNamed(context, '/onboarding');
       }

@@ -565,11 +565,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             onPressed: () async {
               try {
                 await CommunityService.reportPost(widget.post.id, 'Inappropriate content');
+                if (!context.mounted) return;
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Post reported successfully')),
                 );
               } catch (e) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error reporting post: $e')),
                 );

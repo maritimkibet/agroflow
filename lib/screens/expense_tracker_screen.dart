@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
-import '../services/currency_service.dart';
+
 import '../widgets/expense_widgets.dart';
 
 class ExpenseTrackerScreen extends StatefulWidget {
@@ -18,7 +18,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> with Ticker
   DateTime _selectedEndDate = DateTime.now();
   String _selectedCropType = '';
   List<String> _availableCropTypes = [];
-  final CurrencyPreferenceService _currencyService = CurrencyPreferenceService();
+
 
   @override
   void initState() {

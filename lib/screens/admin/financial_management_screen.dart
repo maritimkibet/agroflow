@@ -355,16 +355,20 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
     if (confirmed) {
       _showLoadingDialog('Processing payouts...');
       await Future.delayed(const Duration(seconds: 3));
-      Navigator.pop(context);
-      _showSuccessDialog('Payouts processed successfully!');
+      if (context.mounted) {
+        Navigator.pop(context);
+        _showSuccessDialog('Payouts processed successfully!');
+      }
     }
   }
 
   Future<void> _generateFinancialReport() async {
     _showLoadingDialog('Generating financial report...');
     await Future.delayed(const Duration(seconds: 2));
-    Navigator.pop(context);
-    _showSuccessDialog('Financial report generated and sent to your email!');
+    if (context.mounted) {
+      Navigator.pop(context);
+      _showSuccessDialog('Financial report generated and sent to your email!');
+    }
   }
 
   Future<void> _updateCommissionRate() async {
