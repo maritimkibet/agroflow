@@ -101,20 +101,24 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
+  /// Upload images in parallel and return the download URLs.
   Future<List<String>> _uploadImages() async {
-    List<String> urls = [];
-    for (final image in _pickedImages) {
-      try {
+    if (_pickedImages.isEmpty) return [];
+
+    try {
+      final futures = _pickedImages.map((image) async {
         final fileName = 'products/${DateTime.now().millisecondsSinceEpoch}_${image.path.split('/').last}';
         final ref = _firebaseStorage.ref().child(fileName);
         final uploadTask = await ref.putFile(image);
-        final url = await uploadTask.ref.getDownloadURL();
-        urls.add(url);
-      } catch (e) {
-        debugPrint('Error uploading image: $e');
-      }
+        return await uploadTask.ref.getDownloadURL();
+      }).toList();
+
+      final urls = await Future.wait(futures);
+      return urls;
+    } catch (e) {
+      debugPrint('Error uploading images: $e');
+      return [];
     }
-    return urls;
   }
 
   Future<void> _saveProduct() async {
@@ -139,8 +143,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final location = _locationController.text.trim();
       final contactNumber = _contactController.text.trim();
 
-      if (price <= 0) {
-        throw Exception('Please enter a valid price');
+      if (_selectedListingType == ListingType.sell && price <= 0) {
+        // show user-friendly message instead of throwing generic
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a valid price for selling listings'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
       }
 
       final isEditing = widget.existingProduct != null;
@@ -180,22 +190,35 @@ class _AddProductScreenState extends State<AddProductScreen> {
         category: _selectedType?.toString().split('.').last ?? 'Other',
         tags: [], // Empty tags for now
         sellerName: currentUser.displayName ?? 'Unknown User',
+        // keep other fields defaulted by constructor
       );
 
-      // Save to both Firestore and local storage
+      // Save to Firestore (surface errors) and Hive
+      bool firestoreOk = false;
       try {
         await _firestore.collection('products').doc(product.id).set(product.toMap());
+        firestoreOk = true;
       } catch (e) {
         debugPrint('Failed to save to Firestore: $e');
-        // Continue with local storage even if Firestore fails
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Firestore save failed: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
-      
-      // Always save to local storage for offline access
+
+      // Always save to local storage for offline access and to keep UI consistent
       try {
         final hiveService = HiveService();
         await hiveService.addProduct(product);
       } catch (e) {
         debugPrint('Failed to save to local storage: $e');
+        // show a small warning but don't block
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Local save failed: $e'), backgroundColor: Colors.orange),
+          );
+        }
       }
 
       // Track achievement and analytics
@@ -203,11 +226,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         try {
           final achievementService = AchievementService();
           final analyticsService = GrowthAnalyticsService();
-          
+
           await analyticsService.trackProductListed();
           final unlockedAchievement = await achievementService.updateProgress('first_product');
           final marketplaceAchievement = await achievementService.updateProgress('marketplace_seller');
-          
+
           if (unlockedAchievement != null && mounted) {
             AchievementNotification.show(context, unlockedAchievement);
           } else if (marketplaceAchievement != null && mounted) {
@@ -223,15 +246,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (!mounted) return;
 
-      // Show success message and go back to marketplace
+      // Show success message and navigate back to marketplace (safe for deep nav)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isEditing ? 'Product updated successfully!' : 'Product added successfully!'),
-          backgroundColor: Colors.green,
+          content: Text(isEditing
+              ? (firestoreOk ? 'Product updated successfully!' : 'Product updated locally (Firestore failed).')
+              : (firestoreOk ? 'Product added successfully!' : 'Product saved locally (Firestore failed).')),
+          backgroundColor: firestoreOk ? Colors.green : Colors.orange,
         ),
       );
 
-      Navigator.of(context).pop(); // Go back to marketplace
+      // navigate to marketplace so the user sees the listed product immediately
+      Navigator.pushReplacementNamed(context, '/marketplace');
     } catch (e) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -352,8 +378,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     decoration: const InputDecoration(labelText: 'Price (KSh)'),
                     keyboardType: TextInputType.number,
                     validator: (val) {
-                      final price = double.tryParse(val ?? '');
-                      if (price == null || price <= 0) return 'Enter a valid price';
+                      // Only require price for sell listings
+                      if (_selectedListingType == ListingType.sell) {
+                        final price = double.tryParse(val ?? '');
+                        if (price == null || price <= 0) return 'Enter a valid price';
+                      }
                       return null;
                     },
                     enabled: !_isSaving,

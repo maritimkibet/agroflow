@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
-import '../config/secrets.dart';
+import 'package:agroflow/config/secrets.dart';
 import '../models/product.dart';
 import '../models/crop_task.dart';
 import 'hybrid_storage_service.dart';

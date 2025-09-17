@@ -65,6 +65,7 @@ dependencies:
   
   # Charts for admin dashboard
   fl_chart: ^0.68.0
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
   flutter_test:

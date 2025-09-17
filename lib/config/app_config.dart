@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'secrets.dart';
+import 'package:agroflow/config/secrets.dart';
 
 class AppConfig {
   // App Information

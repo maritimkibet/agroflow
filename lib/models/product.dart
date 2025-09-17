@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
@@ -133,6 +134,7 @@ class Product extends HiveObject {
         createdAt = createdAt ?? DateTime.now();
 
   /// Firestore serialization
+  /// - DateTime fields are converted to Firestore Timestamp.
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
@@ -142,15 +144,17 @@ class Product extends HiveObject {
         'listingType': listingType.index,
         'sellerId': sellerId,
         'location': location,
-        'createdAt': createdAt.toIso8601String(),
+        // Save createdAt as Firestore Timestamp (important for queries / orderBy)
+        'createdAt': Timestamp.fromDate(createdAt),
         'images': images ?? [],
         'isAvailable': isAvailable,
         'contactNumber': contactNumber,
         'imageUrl': imageUrl,
         'isFlagged': isFlagged,
-        'flaggedAt': flaggedAt?.toIso8601String(),
+        // Save other dates as Timestamps when present
+        'flaggedAt': flaggedAt != null ? Timestamp.fromDate(flaggedAt!) : null,
         'isApproved': isApproved,
-        'moderatedAt': moderatedAt?.toIso8601String(),
+        'moderatedAt': moderatedAt != null ? Timestamp.fromDate(moderatedAt!) : null,
         'moderationReason': moderationReason,
         'moderatedBy': moderatedBy,
         'category': category,
@@ -159,14 +163,25 @@ class Product extends HiveObject {
         'sellerName': sellerName,
         'quantity': quantity,
         'unit': unit,
-        'harvestDate': harvestDate?.toIso8601String(),
-        'expiryDate': expiryDate?.toIso8601String(),
+        'harvestDate': harvestDate != null ? Timestamp.fromDate(harvestDate!) : null,
+        'expiryDate': expiryDate != null ? Timestamp.fromDate(expiryDate!) : null,
         'isOrganic': isOrganic,
         'certifications': certifications,
-        'updatedAt': updatedAt?.toIso8601String(),
+        'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       };
 
-  /// Firestore deserialization
+  /// Helper to parse dynamic timestamp-like values into DateTime
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  /// Firestore deserialization (from a Map)
   static Product fromMap(Map<String, dynamic> data, {required String id}) =>
       Product(
         id: id,
@@ -176,27 +191,23 @@ class Product extends HiveObject {
             ? (data['price'] as int).toDouble()
             : (data['price'] as double? ?? 0.0),
         type: ProductType.values[
-            (data['type'] ?? 0).clamp(0, ProductType.values.length - 1)],
-        listingType: ListingType.values[(data['listingType'] ?? 0)
-            .clamp(0, ListingType.values.length - 1)],
+            ((data['type'] ?? 0) is int ? (data['type'] as int) : int.tryParse('${data['type']}') ?? 0)
+                .clamp(0, ProductType.values.length - 1)],
+        listingType: ListingType.values[
+            ((data['listingType'] ?? 0) is int ? (data['listingType'] as int) : int.tryParse('${data['listingType']}') ?? 0)
+                .clamp(0, ListingType.values.length - 1)],
         sellerId: data['sellerId'] ?? '',
         location: data['location'],
-        createdAt: data['createdAt'] != null
-            ? DateTime.tryParse(data['createdAt']) ?? DateTime.now()
-            : DateTime.now(),
-        images:
-            data['images'] != null ? List<String>.from(data['images']) : [],
+        // Accept Timestamp, DateTime or ISO strings
+        createdAt: _parseTimestamp(data['createdAt']) ?? DateTime.now(),
+        images: data['images'] != null ? List<String>.from(data['images']) : [],
         isAvailable: data['isAvailable'] ?? true,
         contactNumber: data['contactNumber'],
         imageUrl: data['imageUrl'],
         isFlagged: data['isFlagged'] ?? false,
-        flaggedAt: data['flaggedAt'] != null
-            ? DateTime.tryParse(data['flaggedAt'])
-            : null,
+        flaggedAt: _parseTimestamp(data['flaggedAt']),
         isApproved: data['isApproved'] ?? true,
-        moderatedAt: data['moderatedAt'] != null
-            ? DateTime.tryParse(data['moderatedAt'])
-            : null,
+        moderatedAt: _parseTimestamp(data['moderatedAt']),
         moderationReason: data['moderationReason'],
         moderatedBy: data['moderatedBy'],
         category: data['category'] ?? 'Other',
@@ -205,31 +216,30 @@ class Product extends HiveObject {
             : null,
         tags: data['tags'] != null ? List<String>.from(data['tags']) : [],
         sellerName: data['sellerName'] ?? '',
-        quantity: data['quantity']?.toDouble(),
+        quantity: data['quantity'] != null
+            ? ((data['quantity'] is int)
+                ? (data['quantity'] as int).toDouble()
+                : (data['quantity'] as double?))
+            : null,
         unit: data['unit'],
-        harvestDate: data['harvestDate'] != null
-            ? DateTime.tryParse(data['harvestDate'])
-            : null,
-        expiryDate: data['expiryDate'] != null
-            ? DateTime.tryParse(data['expiryDate'])
-            : null,
+        harvestDate: _parseTimestamp(data['harvestDate']),
+        expiryDate: _parseTimestamp(data['expiryDate']),
         isOrganic: data['isOrganic'] ?? false,
         certifications: data['certifications'] != null
             ? List<String>.from(data['certifications'])
             : null,
-        updatedAt: data['updatedAt'] != null
-            ? DateTime.tryParse(data['updatedAt'])
-            : null,
+        updatedAt: _parseTimestamp(data['updatedAt']),
       );
 
   /// Firestore document deserialization
   static Product fromFirestore(dynamic doc) {
-    if (doc == null || !doc.exists) {
+    if (doc == null) {
       return empty();
     }
-    
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-    return fromMap(data, id: doc.id);
+    // Works with DocumentSnapshot and QueryDocumentSnapshot
+    final data = doc is DocumentSnapshot ? (doc.data() as Map<String, dynamic>? ?? {}) : (doc.data() as Map<String, dynamic>? ?? {});
+    final id = (doc is DocumentSnapshot) ? doc.id : (doc.id ?? '');
+    return fromMap(data, id: id);
   }
 
   /// Empty product template
